@@ -554,12 +554,18 @@ class Controller {
     }
 
     // เพิ่มข้อมูลนักศึกษา
-    function insertStudent($stuId, $stuFname, $stuLname, $stuPhone, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = '2') {
+    function insertStudent($stuId, $stuFname, $stuLname, $stuPhone = null, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = '2') {
         try {
             // ตรวจสอบว่ามีนักศึกษานี้ในระบบแล้วหรือไม่
             if ($this->recordExists('student', 'Stu_id', $stuId)) {
                 return false;
             }
+            
+            // เตรียมข้อมูล
+            $stuFname = trim($stuFname);
+            $stuLname = trim($stuLname);
+            $stuPhone = $stuPhone ? trim($stuPhone) : null; // เปลี่ยนเป็น null ถ้าไม่มีข้อมูล
+            $stuEmail = $stuEmail ? trim($stuEmail) : null;
             
             // ตรวจสอบว่ามี Curri_id หรือไม่ (จำเป็นตามโครงสร้างฐานข้อมูล)
             if (!$curriId) {
@@ -582,12 +588,6 @@ class Controller {
                     }
                 }
             }
-            
-            // เตรียมข้อมูล
-            $stuFname = trim($stuFname);
-            $stuLname = trim($stuLname);
-            $stuPhone = trim($stuPhone);
-            $stuEmail = $stuEmail ? trim($stuEmail) : null;
             
             return $this->insert('student', [
                 'Stu_id' => $stuId,
@@ -612,7 +612,7 @@ class Controller {
     }
 
     // อัปเดตข้อมูลนักศึกษา
-    function updateStudent($stuId, $stuFname, $stuLname, $stuPhone, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = null) {
+    function updateStudent($stuId, $stuFname, $stuLname, $stuPhone = null, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = null) {
         try {
             // ตรวจสอบว่ามีนักศึกษานี้ในระบบหรือไม่
             if (!$this->recordExists('student', 'Stu_id', $stuId)) {
@@ -622,8 +622,39 @@ class Controller {
             // เตรียมข้อมูล
             $stuFname = trim($stuFname);
             $stuLname = trim($stuLname);
-            $stuPhone = trim($stuPhone);
+            $stuPhone = $stuPhone ? trim($stuPhone) : null; // เปลี่ยนเป็น null ถ้าไม่มีข้อมูล
             $stuEmail = $stuEmail ? trim($stuEmail) : null;
+            
+            // ตรวจสอบและกำหนดค่า curri_id
+            if (!empty($curriName)) {
+                // กรณีที่เป็นรหัสหลักสูตร 14 หลัก (เช่น 25500901104641)
+                if (is_numeric($curriName) && strlen(trim($curriName)) == 14) {
+                    $curriId = trim($curriName); // ใช้ค่าที่รับมาโดยตรง ไม่ต้องค้นหาในฐานข้อมูล
+                } else {
+                    // กรณีที่เป็นชื่อหลักสูตร หรือรหัสที่ไม่ใช่ 14 หลัก
+                    $sql = "SELECT Curri_id FROM curriculum 
+                           WHERE Curri_tname LIKE :curri_name 
+                           OR Curri_t LIKE :curri_name 
+                           OR Curri_ename LIKE :curri_name 
+                           OR Curri_e LIKE :curri_name";
+                    $stmt = $this->executeQuery($sql, [':curri_name' => "%$curriName%"]);
+                    if ($stmt && $stmt->rowCount() > 0) {
+                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $curriId = $result['Curri_id'];
+                    } else {
+                        // ถ้าไม่พบ ใช้หลักสูตรล่าสุดของสาขา
+                        $sql = "SELECT Curri_id FROM curriculum 
+                               WHERE Maj_id = :maj_id 
+                               ORDER BY Curri_start DESC LIMIT 1";
+                        $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
+                        if ($stmt && $stmt->rowCount() > 0) {
+                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                            $curriId = $result['Curri_id'];
+                            $error_details[] = "แถวที่ {$row}: ไม่พบหลักสูตร \"$curriName\" ใช้หลักสูตรล่าสุดของสาขาแทน";
+                        }
+                    }
+                }
+            }
             
             // ตรวจสอบว่ามี Curri_id และ is_status หรือไม่
             if (!$curriId || !$is_status) {
@@ -735,461 +766,458 @@ class Controller {
     
     // นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
     /**
- * นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
- * 
- * @param array $file ข้อมูลไฟล์ที่อัปโหลด ($_FILES['import_file'])
- * @param string $importMode โหมดการนำเข้า ('add', 'update', 'both')
- * @return array ผลลัพธ์การนำเข้า
- */
-/**
- * นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
- * 
- * @param array $file ข้อมูลไฟล์ที่อัปโหลด ($_FILES['import_file'])
- * @param string $importMode โหมดการนำเข้า ('add', 'update', 'both')
- * @return array ผลลัพธ์การนำเข้า
- */
-function importStudentsFromExcel($file, $importMode = 'both') {
-    try {
-        // ตรวจสอบว่ามีไฟล์หรือไม่
-        if (!isset($file) || $file['error'] !== 0) {
-            return [
-                'status' => false,
-                'message' => 'ไม่พบไฟล์ที่อัปโหลด หรือเกิดข้อผิดพลาดในการอัปโหลด'
-            ];
-        }
-        
-        // ตรวจสอบนามสกุลไฟล์
-        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($extension, ['xlsx', 'xls'])) {
-            return [
-                'status' => false,
-                'message' => 'รองรับเฉพาะไฟล์ Excel (.xlsx, .xls) เท่านั้น'
-            ];
-        }
-        
-        // บันทึกไฟล์ชั่วคราว
-        $tmpFile = $file['tmp_name'];
-        
-        // ใช้ PhpSpreadsheet เพื่ออ่านไฟล์ Excel
-        require_once __DIR__ . '/../officer/includes/vendor/autoload.php';
-        
-        $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($tmpFile);
-        $reader->setReadDataOnly(true);
-        $spreadsheet = $reader->load($tmpFile);
-        $worksheet = $spreadsheet->getActiveSheet();
-        
-        // อ่านข้อมูลทั้งหมดเป็น array
-        $allData = $worksheet->toArray(null, true, true, true);
-        
-        // เริ่ม transaction
-        $this->db->beginTransaction();
-        
-        $inserted = 0;
-        $updated = 0;
-        $errors = 0;
-        $error_details = [];
-        
-        // กำหนดแถวแรกเป็นหัวตาราง
-        $headers = array_map('trim', $allData[1]);
-        
-        // ตรวจสอบว่ามีคอลัมน์ที่จำเป็นหรือไม่
-        $requiredHeaders = ['รหัสนักศึกษา', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'เบอร์โทรศัพท์', 'สาขาวิชา', 'อาจารย์ที่ปรึกษา', 'แผนการเรียน'];
-        
-        // รองรับชื่อคอลัมน์หลายแบบ
-        $headerAliases = [
-            'รหัสนักศึกษา' => ['รหัสนักศึกษา', 'student_id', 'stu_id'],
-            'คำนำหน้า' => ['คำนำหน้า', 'title_id', 'คำนำหน้าชื่อ'],
-            'ชื่อ' => ['ชื่อ', 'student_fname', 'stu_fname', 'fname'],
-            'นามสกุล' => ['นามสกุล', 'student_lname', 'stu_lname', 'lname'],
-            'เบอร์โทรศัพท์' => ['เบอร์โทรศัพท์', 'student_phone', 'stu_phone', 'phone'],
-            'สาขาวิชา' => ['สาขาวิชา', 'สาขา', 'maj_id', 'major_id'],
-            'อาจารย์ที่ปรึกษา' => ['อาจารย์ที่ปรึกษา', 'prof_id', 'อาจารย์'],
-            'แผนการเรียน' => ['แผนการเรียน', 'plan_id', 'แผนการศึกษา'],
-        ];
-        
-        // ตรวจสอบคอลัมน์ที่จำเป็น
-        $missingHeaders = [];
-        foreach ($requiredHeaders as $requiredHeader) {
-            $found = false;
-            foreach ($headerAliases[$requiredHeader] as $alias) {
-                if (in_array($alias, $headers)) {
-                    $found = true;
-                    break;
-                }
+     * นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
+     * 
+     * @param array $file ข้อมูลไฟล์ที่อัปโหลด ($_FILES['import_file'])
+     * @param string $importMode โหมดการนำเข้า ('add', 'update', 'both')
+     * @return array ผลลัพธ์การนำเข้า
+     */
+    /**
+     * นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
+     * 
+     * @param array $file ข้อมูลไฟล์ที่อัปโหลด ($_FILES['import_file'])
+     * @param string $importMode โหมดการนำเข้า ('add', 'update', 'both')
+     * @return array ผลลัพธ์การนำเข้า
+     */
+    function importStudentsFromExcel($file, $importMode = 'both') {
+        try {
+            // ตรวจสอบว่ามีไฟล์หรือไม่
+            if (!isset($file) || $file['error'] !== 0) {
+                return [
+                    'status' => false,
+                    'message' => 'ไม่พบไฟล์ที่อัปโหลด หรือเกิดข้อผิดพลาดในการอัปโหลด'
+                ];
             }
-            if (!$found) {
-                $missingHeaders[] = $requiredHeader;
-            }
-        }
-        
-        if (!empty($missingHeaders)) {
-            return [
-                'status' => false,
-                'message' => 'ไฟล์ Excel ไม่มีคอลัมน์ที่จำเป็น: ' . implode(', ', $missingHeaders)
-            ];
-        }
-        
-        // หาตำแหน่งคอลัมน์จากหัวตาราง
-        $colIndexes = [];
-        foreach ($headers as $col => $header) {
-            $headerLower = strtolower(trim($header));
             
-            foreach ($headerAliases as $key => $aliases) {
-                foreach ($aliases as $alias) {
-                    if (strtolower($alias) === $headerLower) {
-                        $colIndexMap = [
-                            'รหัสนักศึกษา' => 'student_id',
-                            'คำนำหน้า' => 'title_id',
-                            'ชื่อ' => 'student_fname',
-                            'นามสกุล' => 'student_lname',
-                            'เบอร์โทรศัพท์' => 'student_phone',
-                            'สาขาวิชา' => 'major_id',
-                            'อาจารย์ที่ปรึกษา' => 'prof_id',
-                            'แผนการเรียน' => 'plan_id',
-                        ];
-                        $colIndexes[$colIndexMap[$key]] = $col;
-                        break 2;
+            // ตรวจสอบนามสกุลไฟล์
+            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if (!in_array($extension, ['xlsx', 'xls'])) {
+                return [
+                    'status' => false,
+                    'message' => 'รองรับเฉพาะไฟล์ Excel (.xlsx, .xls) เท่านั้น'
+                ];
+            }
+            
+            // บันทึกไฟล์ชั่วคราว
+            $tmpFile = $file['tmp_name'];
+            
+            // ใช้ PhpSpreadsheet เพื่ออ่านไฟล์ Excel
+            require_once __DIR__ . '/../officer/includes/vendor/autoload.php';
+            
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($tmpFile);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($tmpFile);
+            $worksheet = $spreadsheet->getActiveSheet();
+            
+            // อ่านข้อมูลทั้งหมดเป็น array
+            $allData = $worksheet->toArray(null, true, true, true);
+            
+            // เริ่ม transaction
+            $this->db->beginTransaction();
+            
+            $inserted = 0;
+            $updated = 0;
+            $errors = 0;
+            $error_details = [];
+            
+            // กำหนดแถวแรกเป็นหัวตาราง
+            $headers = array_map('trim', $allData[1]);
+            
+            // ตรวจสอบว่ามีคอลัมน์ที่จำเป็นหรือไม่
+            $requiredHeaders = ['รหัสนักศึกษา', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'เบอร์โทรศัพท์', 'สาขาวิชา', 'อาจารย์ที่ปรึกษา', 'แผนการเรียน'];
+            
+            // รองรับชื่อคอลัมน์หลายแบบ
+            $headerAliases = [
+                'รหัสนักศึกษา' => ['รหัสนักศึกษา', 'student_id', 'stu_id'],
+                'คำนำหน้า' => ['คำนำหน้า', 'title_id', 'คำนำหน้าชื่อ'],
+                'ชื่อ' => ['ชื่อ', 'student_fname', 'stu_fname', 'fname'],
+                'นามสกุล' => ['นามสกุล', 'student_lname', 'stu_lname', 'lname'],
+                'เบอร์โทรศัพท์' => ['เบอร์โทรศัพท์', 'student_phone', 'stu_phone', 'phone'],
+                'สาขาวิชา' => ['สาขาวิชา', 'สาขา', 'maj_id', 'major_id'],
+                'อาจารย์ที่ปรึกษา' => ['อาจารย์ที่ปรึกษา', 'prof_id', 'อาจารย์'],
+                'แผนการเรียน' => ['แผนการเรียน', 'plan_id', 'แผนการศึกษา'],
+            ];
+            
+            // ตรวจสอบคอลัมน์ที่จำเป็น
+            $missingHeaders = [];
+            foreach ($requiredHeaders as $requiredHeader) {
+                $found = false;
+                foreach ($headerAliases[$requiredHeader] as $alias) {
+                    if (in_array($alias, $headers)) {
+                        $found = true;
+                        break;
                     }
+                }
+                if (!$found) {
+                    $missingHeaders[] = $requiredHeader;
                 }
             }
             
-            // คอลัมน์อื่นๆ ที่ไม่จำเป็น
-            if ($headerLower === 'อีเมล' || $headerLower === 'student_email' || $headerLower === 'email') {
-                $colIndexes['student_email'] = $col;
-            } else if ($headerLower === 'วันเกิด' || $headerLower === 'birthdate') {
-                $colIndexes['birthdate'] = $col;
-            } else if ($headerLower === 'ศาสนา' || $headerLower === 'religion') {
-                $colIndexes['religion'] = $col;
-            } else if ($headerLower === 'สัญชาติ' || $headerLower === 'nationality') {
-                $colIndexes['nationality'] = $col;
-            } else if ($headerLower === 'หลักสูตร' || $headerLower === 'curriculum_id') {
-                $colIndexes['curriculum_id'] = $col;
-            } else if ($headerLower === 'สถานะ' || $headerLower === 'is_status') {
-                $colIndexes['is_status'] = $col;
+            if (!empty($missingHeaders)) {
+                return [
+                    'status' => false,
+                    'message' => 'ไฟล์ Excel ไม่มีคอลัมน์ที่จำเป็น: ' . implode(', ', $missingHeaders)
+                ];
             }
-        }
-        
-        // เริ่มอ่านข้อมูลจากแถวที่ 2 (ข้ามหัวตาราง)
-        for ($row = 2; $row <= count($allData); $row++) {
-            try {
-                $rowData = $allData[$row];
+            
+            // หาตำแหน่งคอลัมน์จากหัวตาราง
+            $colIndexes = [];
+            foreach ($headers as $col => $header) {
+                $headerLower = strtolower(trim($header));
                 
-                // ข้ามแถวว่าง
-                if (empty($rowData)) {
-                    continue;
-                }
-                
-                // อ่านข้อมูลจากแต่ละคอลัมน์
-                $stuId = isset($colIndexes['student_id']) && isset($rowData[$colIndexes['student_id']]) ? trim($rowData[$colIndexes['student_id']]) : '';
-                $titleName = isset($colIndexes['title_id']) && isset($rowData[$colIndexes['title_id']]) ? trim($rowData[$colIndexes['title_id']]) : '';
-                $stuFname = isset($colIndexes['student_fname']) && isset($rowData[$colIndexes['student_fname']]) ? trim($rowData[$colIndexes['student_fname']]) : '';
-                $stuLname = isset($colIndexes['student_lname']) && isset($rowData[$colIndexes['student_lname']]) ? trim($rowData[$colIndexes['student_lname']]) : '';
-                $stuPhone = isset($colIndexes['student_phone']) && isset($rowData[$colIndexes['student_phone']]) ? trim($rowData[$colIndexes['student_phone']]) : '';
-                $stuEmail = isset($colIndexes['student_email']) && isset($rowData[$colIndexes['student_email']]) ? trim($rowData[$colIndexes['student_email']]) : '';
-                $birthdateVal = isset($colIndexes['birthdate']) && isset($rowData[$colIndexes['birthdate']]) ? $rowData[$colIndexes['birthdate']] : '';
-                $religion = isset($colIndexes['religion']) && isset($rowData[$colIndexes['religion']]) ? trim($rowData[$colIndexes['religion']]) : '';
-                $nationality = isset($colIndexes['nationality']) && isset($rowData[$colIndexes['nationality']]) ? trim($rowData[$colIndexes['nationality']]) : 'ไทย';
-                $planName = isset($colIndexes['plan_id']) && isset($rowData[$colIndexes['plan_id']]) ? trim($rowData[$colIndexes['plan_id']]) : '';
-                $majorName = isset($colIndexes['major_id']) && isset($rowData[$colIndexes['major_id']]) ? trim($rowData[$colIndexes['major_id']]) : '';
-                $profName = isset($colIndexes['prof_id']) && isset($rowData[$colIndexes['prof_id']]) ? trim($rowData[$colIndexes['prof_id']]) : '';
-                $curriName = isset($colIndexes['curriculum_id']) && isset($rowData[$colIndexes['curriculum_id']]) ? trim($rowData[$colIndexes['curriculum_id']]) : '';
-                $isStatus = isset($colIndexes['is_status']) && isset($rowData[$colIndexes['is_status']]) ? trim($rowData[$colIndexes['is_status']]) : '2';
-                
-                // ข้ามแถวที่ไม่มีข้อมูลสำคัญ
-                if (empty($stuId) || empty($stuFname) || empty($stuLname)) {
-                    continue;
-                }
-                
-                // แปลงรูปแบบวันเกิด
-                $birthdate = null;
-                if (!empty($birthdateVal)) {
-                    // แปลงวันเกิดให้อยู่ในรูปแบบ Y-m-d
-                    if (is_numeric($birthdateVal)) {
-                        // กรณีเป็น Excel timestamp
-                        $birthdate = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($birthdateVal)->format('Y-m-d');
-                    } else {
-                        $birthdateObj = null;
-                        // ลองแปลงจากหลายรูปแบบ
-                        $dateFormats = ['d/m/Y', 'Y-m-d', 'm/d/Y', 'd-m-Y', 'Y/m/d'];
-                        foreach ($dateFormats as $format) {
-                            $dateObj = \DateTime::createFromFormat($format, $birthdateVal);
-                            if ($dateObj !== false) {
-                                $birthdateObj = $dateObj;
-                                break;
-                            }
-                        }
-                        $birthdate = $birthdateObj ? $birthdateObj->format('Y-m-d') : null;
-                    }
-                }
-                
-                // ตรวจสอบและค้นหา title_id จากชื่อคำนำหน้า
-                $titleId = null;
-                if (!empty($titleName)) {
-                    if (is_numeric($titleName)) {
-                        $titleId = $titleName;
-                    } else {
-                        $sql = "SELECT Title_id FROM title WHERE Title_name = :title_name";
-                        $stmt = $this->executeQuery($sql, [':title_name' => $titleName]);
-                        if ($stmt && $stmt->rowCount() > 0) {
-                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                            $titleId = $result['Title_id'];
-                        } else {
-                            // ถ้าไม่พบ ใช้ค่าเริ่มต้น
-                            $titleId = "1"; // นาย
-                            $error_details[] = "แถวที่ " . $row . ": ไม่พบคำนำหน้า \"$titleName\" ใช้ค่าเริ่มต้นแทน";
+                foreach ($headerAliases as $key => $aliases) {
+                    foreach ($aliases as $alias) {
+                        if (strtolower($alias) === $headerLower) {
+                            $colIndexMap = [
+                                'รหัสนักศึกษา' => 'student_id',
+                                'คำนำหน้า' => 'title_id',
+                                'ชื่อ' => 'student_fname',
+                                'นามสกุล' => 'student_lname',
+                                'เบอร์โทรศัพท์' => 'student_phone',
+                                'สาขาวิชา' => 'major_id',
+                                'อาจารย์ที่ปรึกษา' => 'prof_id',
+                                'แผนการเรียน' => 'plan_id',
+                            ];
+                            $colIndexes[$colIndexMap[$key]] = $col;
+                            break 2;
                         }
                     }
-                } else {
-                    $titleId = "1"; // ค่าเริ่มต้น: นาย
                 }
                 
-                // ตรวจสอบและค้นหา maj_id จากชื่อสาขา
-                $majId = null;
-                if (!empty($majorName)) {
-                    if (is_numeric($majorName)) {
-                        $majId = $majorName;
-                    } else {
-                        $sql = "SELECT Maj_id FROM major WHERE Maj_name = :maj_name";
-                        $stmt = $this->executeQuery($sql, [':maj_name' => $majorName]);
-                        if ($stmt && $stmt->rowCount() > 0) {
-                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                            $majId = $result['Maj_id'];
-                        } else {
-                            throw new Exception("ไม่พบสาขาวิชา \"$majorName\" ในระบบ");
-                        }
+                // คอลัมน์อื่นๆ ที่ไม่จำเป็น
+                if ($headerLower === 'อีเมล' || $headerLower === 'student_email' || $headerLower === 'email') {
+                    $colIndexes['student_email'] = $col;
+                } else if ($headerLower === 'วันเกิด' || $headerLower === 'birthdate') {
+                    $colIndexes['birthdate'] = $col;
+                } else if ($headerLower === 'ศาสนา' || $headerLower === 'religion') {
+                    $colIndexes['religion'] = $col;
+                } else if ($headerLower === 'สัญชาติ' || $headerLower === 'nationality') {
+                    $colIndexes['nationality'] = $col;
+                } else if ($headerLower === 'หลักสูตร' || $headerLower === 'curriculum_id') {
+                    $colIndexes['curriculum_id'] = $col;
+                } else if ($headerLower === 'สถานะ' || $headerLower === 'is_status') {
+                    $colIndexes['is_status'] = $col;
+                }
+            }
+            
+            // เริ่มอ่านข้อมูลจากแถวที่ 2 (ข้ามหัวตาราง)
+            for ($row = 2; $row <= count($allData); $row++) {
+                try {
+                    $rowData = $allData[$row];
+                    
+                    // ข้ามแถวว่าง
+                    if (empty($rowData)) {
+                        continue;
                     }
-                } else {
-                    throw new Exception("ไม่ระบุสาขาวิชา");
-                }
-                
-                // ตรวจสอบและค้นหา plan_id จากชื่อแผนการเรียน
-                $planId = null;
-                if (!empty($planName)) {
-                    if (is_numeric($planName)) {
-                        $planId = $planName;
-                    } else {
-                        // ค้นหาจากชื่อเต็มหรือชื่อย่อ
-                        $sql = "SELECT Plan_id FROM student_plan WHERE Plan_name = :plan_name OR Abbre = :plan_abbre";
-                        $stmt = $this->executeQuery($sql, [':plan_name' => $planName, ':plan_abbre' => $planName]);
-                        if ($stmt && $stmt->rowCount() > 0) {
-                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                            $planId = $result['Plan_id'];
-                        } else {
-                            throw new Exception("ไม่พบแผนการเรียน \"$planName\" ในระบบ");
-                        }
+                    
+                    // อ่านข้อมูลจากแต่ละคอลัมน์
+                    $stuId = isset($colIndexes['student_id']) && isset($rowData[$colIndexes['student_id']]) ? trim($rowData[$colIndexes['student_id']]) : '';
+                    $titleName = isset($colIndexes['title_id']) && isset($rowData[$colIndexes['title_id']]) ? trim($rowData[$colIndexes['title_id']]) : '';
+                    $stuFname = isset($colIndexes['student_fname']) && isset($rowData[$colIndexes['student_fname']]) ? trim($rowData[$colIndexes['student_fname']]) : '';
+                    $stuLname = isset($colIndexes['student_lname']) && isset($rowData[$colIndexes['student_lname']]) ? trim($rowData[$colIndexes['student_lname']]) : '';
+                    $stuPhone = isset($colIndexes['student_phone']) && isset($rowData[$colIndexes['student_phone']]) ? trim($rowData[$colIndexes['student_phone']]) : '';
+                    $stuEmail = isset($colIndexes['student_email']) && isset($rowData[$colIndexes['student_email']]) ? trim($rowData[$colIndexes['student_email']]) : '';
+                    $birthdateVal = isset($colIndexes['birthdate']) && isset($rowData[$colIndexes['birthdate']]) ? $rowData[$colIndexes['birthdate']] : '';
+                    $religion = isset($colIndexes['religion']) && isset($rowData[$colIndexes['religion']]) ? trim($rowData[$colIndexes['religion']]) : '';
+                    $nationality = isset($colIndexes['nationality']) && isset($rowData[$colIndexes['nationality']]) ? trim($rowData[$colIndexes['nationality']]) : 'ไทย';
+                    $planName = isset($colIndexes['plan_id']) && isset($rowData[$colIndexes['plan_id']]) ? trim($rowData[$colIndexes['plan_id']]) : '';
+                    $majorName = isset($colIndexes['major_id']) && isset($rowData[$colIndexes['major_id']]) ? trim($rowData[$colIndexes['major_id']]) : '';
+                    $profName = isset($colIndexes['prof_id']) && isset($rowData[$colIndexes['prof_id']]) ? trim($rowData[$colIndexes['prof_id']]) : '';
+                    $curriName = isset($colIndexes['curriculum_id']) && isset($rowData[$colIndexes['curriculum_id']]) ? trim($rowData[$colIndexes['curriculum_id']]) : '';
+                    $isStatus = isset($colIndexes['is_status']) && isset($rowData[$colIndexes['is_status']]) ? trim($rowData[$colIndexes['is_status']]) : '2';
+                    
+                    // ข้ามแถวที่ไม่มีข้อมูลสำคัญ
+                    if (empty($stuId) || empty($stuFname) || empty($stuLname)) {
+                        continue;
                     }
-                } else {
-                    throw new Exception("ไม่ระบุแผนการเรียน");
-                }
-                
-                // ตรวจสอบและค้นหา prof_id จากชื่ออาจารย์
-                $profId = null;
-                if (!empty($profName)) {
-                    if (is_numeric($profName)) {
-                        $profId = $profName;
-                    } else {
-                        // ค้นหาจากรหัสอาจารย์
-                        $sql = "SELECT Prof_id FROM professor WHERE Prof_id = :prof_id";
-                        $stmt = $this->executeQuery($sql, [':prof_id' => $profName]);
-                        if ($stmt && $stmt->rowCount() > 0) {
-                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                            $profId = $result['Prof_id'];
+                    
+                    // แปลงรูปแบบวันเกิด
+                    $birthdate = null;
+                    if (!empty($birthdateVal)) {
+                        // แปลงวันเกิดให้อยู่ในรูปแบบ Y-m-d
+                        if (is_numeric($birthdateVal)) {
+                            // กรณีเป็น Excel timestamp
+                            $birthdate = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($birthdateVal)->format('Y-m-d');
                         } else {
-                            // ค้นหาจากชื่อ-นามสกุล (ค้นแบบคร่าวๆ)
-                            $nameParts = explode(' ', $profName);
-                            if (count($nameParts) >= 2) {
-                                $firstName = $nameParts[0];
-                                $lastName = end($nameParts);
-                                
-                                $sql = "SELECT Prof_id FROM professor WHERE Prof_fname LIKE :fname AND Prof_lname LIKE :lname";
-                                $stmt = $this->executeQuery($sql, [':fname' => "%$firstName%", ':lname' => "%$lastName%"]);
-                                if ($stmt && $stmt->rowCount() > 0) {
-                                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                                    $profId = $result['Prof_id'];
-                                } else {
-                                    throw new Exception("ไม่พบอาจารย์ที่ปรึกษา \"$profName\" ในระบบ");
+                            $birthdateObj = null;
+                            // ลองแปลงจากหลายรูปแบบ
+                            $dateFormats = ['d/m/Y', 'Y-m-d', 'm/d/Y', 'd-m-Y', 'Y/m/d'];
+                            foreach ($dateFormats as $format) {
+                                $dateObj = \DateTime::createFromFormat($format, $birthdateVal);
+                                if ($dateObj !== false) {
+                                    $birthdateObj = $dateObj;
+                                    break;
                                 }
-                            } else {
-                                throw new Exception("ชื่ออาจารย์ที่ปรึกษาไม่ถูกต้อง \"$profName\"");
                             }
+                            $birthdate = $birthdateObj ? $birthdateObj->format('Y-m-d') : null;
                         }
                     }
-                } else {
-                    throw new Exception("ไม่ระบุอาจารย์ที่ปรึกษา");
-                }
-                
-                // ตรวจสอบและค้นหา curri_id
-                $curriId = null;
-                if (!empty($curriName)) {
-                    if (is_numeric($curriName)) {
-                        $curriId = $curriName;
-                    } else {
-                        $sql = "SELECT Curri_id FROM curriculum WHERE Curri_tname LIKE :curri_name OR Curri_t LIKE :curri_short OR Curri_ename LIKE :curri_ename OR Curri_e LIKE :curri_eshort";
-                        $stmt = $this->executeQuery($sql, [
-                            ':curri_name' => "%$curriName%", 
-                            ':curri_short' => "%$curriName%",
-                            ':curri_ename' => "%$curriName%",
-                            ':curri_eshort' => "%$curriName%"
-                        ]);
-                        if ($stmt && $stmt->rowCount() > 0) {
-                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                            $curriId = $result['Curri_id'];
+                    
+                    // ตรวจสอบและค้นหา title_id จากชื่อคำนำหน้า
+                    $titleId = null;
+                    if (!empty($titleName)) {
+                        if (is_numeric($titleName)) {
+                            $titleId = $titleName;
                         } else {
-                            // ถ้าไม่พบ ให้ใช้หลักสูตรแรกของสาขานั้น
-                            $sql = "SELECT Curri_id FROM curriculum WHERE Maj_id = :maj_id ORDER BY Curri_start DESC LIMIT 1";
-                            $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
+                            $sql = "SELECT Title_id FROM title WHERE Title_name = :title_name";
+                            $stmt = $this->executeQuery($sql, [':title_name' => $titleName]);
+                            if ($stmt && $stmt->rowCount() > 0) {
+                                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                $titleId = $result['Title_id'];
+                            } else {
+                                // ถ้าไม่พบ ใช้ค่าเริ่มต้น
+                                $titleId = "1"; // นาย
+                                $error_details[] = "แถวที่ " . $row . ": ไม่พบคำนำหน้า \"$titleName\" ใช้ค่าเริ่มต้นแทน";
+                            }
+                        }
+                    } else {
+                        $titleId = "1"; // ค่าเริ่มต้น: นาย
+                    }
+                    
+                    // ตรวจสอบและค้นหา maj_id จากชื่อสาขา
+                    $majId = null;
+                    if (!empty($majorName)) {
+                        if (is_numeric($majorName)) {
+                            $majId = $majorName;
+                        } else {
+                            $sql = "SELECT Maj_id FROM major WHERE Maj_name = :maj_name";
+                            $stmt = $this->executeQuery($sql, [':maj_name' => $majorName]);
+                            if ($stmt && $stmt->rowCount() > 0) {
+                                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                $majId = $result['Maj_id'];
+                            } else {
+                                throw new Exception("ไม่พบสาขาวิชา \"$majorName\" ในระบบ");
+                            }
+                        }
+                    } else {
+                        throw new Exception("ไม่ระบุสาขาวิชา");
+                    }
+                    
+                    // ตรวจสอบและค้นหา plan_id จากชื่อแผนการเรียน
+                    $planId = null;
+                    if (!empty($planName)) {
+                        if (is_numeric($planName)) {
+                            $planId = $planName;
+                        } else {
+                            // ค้นหาจากชื่อเต็มหรือชื่อย่อ
+                            $sql = "SELECT Plan_id FROM student_plan WHERE Plan_name = :plan_name OR Abbre = :plan_abbre";
+                            $stmt = $this->executeQuery($sql, [':plan_name' => $planName, ':plan_abbre' => $planName]);
+                            if ($stmt && $stmt->rowCount() > 0) {
+                                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                $planId = $result['Plan_id'];
+                            } else {
+                                throw new Exception("ไม่พบแผนการเรียน \"$planName\" ในระบบ");
+                            }
+                        }
+                    } else {
+                        throw new Exception("ไม่ระบุแผนการเรียน");
+                    }
+                    
+                    // ตรวจสอบและค้นหา prof_id จากชื่ออาจารย์
+                    $profId = null;
+                    if (!empty($profName)) {
+                        if (is_numeric($profName)) {
+                            $profId = $profName;
+                        } else {
+                            // ค้นหาจากรหัสอาจารย์
+                            $sql = "SELECT Prof_id FROM professor WHERE Prof_id = :prof_id";
+                            $stmt = $this->executeQuery($sql, [':prof_id' => $profName]);
+                            if ($stmt && $stmt->rowCount() > 0) {
+                                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                $profId = $result['Prof_id'];
+                            } else {
+                                // ค้นหาจากชื่อ-นามสกุล (ค้นแบบคร่าวๆ)
+                                $nameParts = explode(' ', $profName);
+                                if (count($nameParts) >= 2) {
+                                    $firstName = $nameParts[0];
+                                    $lastName = end($nameParts);
+                                    
+                                    $sql = "SELECT Prof_id FROM professor WHERE Prof_fname LIKE :fname AND Prof_lname LIKE :lname";
+                                    $stmt = $this->executeQuery($sql, [':fname' => "%$firstName%", ':lname' => "%$lastName%"]);
+                                    if ($stmt && $stmt->rowCount() > 0) {
+                                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                        $profId = $result['Prof_id'];
+                                    } else {
+                                        throw new Exception("ไม่พบอาจารย์ที่ปรึกษา \"$profName\" ในระบบ");
+                                    }
+                                } else {
+                                    throw new Exception("ชื่ออาจารย์ที่ปรึกษาไม่ถูกต้อง \"$profName\"");
+                                }
+                            }
+                        }
+                    } else {
+                        throw new Exception("ไม่ระบุอาจารย์ที่ปรึกษา");
+                    }
+                    
+                    // ตรวจสอบและค้นหา curri_id
+                    $curriId = null;
+                    if (!empty($curriName)) {
+                        if (is_numeric($curriName)) {
+                            // ถ้าเป็นตัวเลข ให้ค้นหาจาก Curri_id โดยตรง
+                            $sql = "SELECT Curri_id FROM curriculum WHERE Curri_id = :curri_id";
+                            $stmt = $this->executeQuery($sql, [':curri_id' => $curriName]);
                             if ($stmt && $stmt->rowCount() > 0) {
                                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
                                 $curriId = $result['Curri_id'];
-                                $error_details[] = "แถวที่ " . $row . ": ไม่พบหลักสูตร \"$curriName\" ใช้หลักสูตรล่าสุดของสาขาแทน";
                             } else {
-                                throw new Exception("ไม่พบหลักสูตรสำหรับสาขา $majorName");
+                                // ถ้าไม่พบ ให้ค้นหาจากชื่อหลักสูตร
+                                $sql = "SELECT Curri_id FROM curriculum 
+                                       WHERE Curri_tname LIKE :curri_name 
+                                       OR Curri_t LIKE :curri_name 
+                                       OR Curri_ename LIKE :curri_name 
+                                       OR Curri_e LIKE :curri_name";
+                                $stmt = $this->executeQuery($sql, [':curri_name' => "%$curriName%"]);
+                                if ($stmt && $stmt->rowCount() > 0) {
+                                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                    $curriId = $result['Curri_id'];
+                                } else {
+                                    // ถ้าไม่พบ ให้ใช้หลักสูตรล่าสุดของสาขา
+                                    $sql = "SELECT Curri_id FROM curriculum 
+                                           WHERE Maj_id = :maj_id 
+                                           ORDER BY Curri_start DESC LIMIT 1";
+                                    $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
+                                    if ($stmt && $stmt->rowCount() > 0) {
+                                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                        $curriId = $result['Curri_id'];
+                                        $error_details[] = "แถวที่ {$row}: ไม่พบหลักสูตร \"$curriName\" ใช้หลักสูตรล่าสุดของสาขาแทน";
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // กรณีไม่ระบุหลักสูตร ใช้หลักสูตรล่าสุดของสาขา
+                        $sql = "SELECT Curri_id FROM curriculum 
+                               WHERE Maj_id = :maj_id 
+                               ORDER BY Curri_start DESC LIMIT 1";
+                        $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
+                        if ($stmt && $stmt->rowCount() > 0) {
+                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                            $curriId = $result['Curri_id'];
+                        }
+                    }
+                    
+                    // ตรวจสอบสถานะ
+                    if (!empty($isStatus)) {
+                        if (!in_array($isStatus, ['1', '2', '3', '4'])) {
+                            $isStatus = '2'; // ค่าเริ่มต้น: สถานะปกติ
+                            $error_details[] = "แถวที่ " . $row . ": สถานะไม่ถูกต้อง ใช้ค่าเริ่มต้น (ปกติ) แทน";
+                        }
+                    } else {
+                        $isStatus = '2'; // ค่าเริ่มต้น: สถานะปกติ
+                    }
+                    
+                    // ตรวจสอบว่ามีนักศึกษานี้ในระบบแล้วหรือไม่
+                    $existingStudent = $this->getStudentById($stuId);
+                    
+                    // ตัดสินใจว่าจะเพิ่มหรืออัปเดตข้อมูล
+                    if ($existingStudent) {
+                        // มีข้อมูลนักศึกษานี้อยู่แล้ว
+                        if ($importMode == 'add') {
+                            // โหมดเพิ่มข้อมูลใหม่เท่านั้น
+                            $error_details[] = "แถวที่ " . $row . ": รหัสนักศึกษา $stuId มีอยู่ในระบบแล้ว (ข้ามไป)";
+                            continue;
+                        } else {
+                            // โหมดอัปเดตหรือทั้งสองโหมด
+                            $updateResult = $this->updateStudent(
+                                $stuId, 
+                                $stuFname, 
+                                $stuLname, 
+                                $stuPhone, 
+                                $stuEmail, 
+                                $birthdate, 
+                                $religion, 
+                                $nationality, 
+                                $planId, 
+                                $titleId, 
+                                $profId, 
+                                $majId, 
+                                $curriId, 
+                                $isStatus
+                            );
+                            
+                            if ($updateResult) {
+                                $updated++;
+                            } else {
+                                $errors++;
+                                $error_details[] = "แถวที่ " . $row . ": เกิดข้อผิดพลาดในการอัปเดตข้อมูลนักศึกษา $stuId";
+                            }
+                        }
+                    } else {
+                        // ไม่มีข้อมูลนักศึกษานี้
+                        if ($importMode == 'update') {
+                            // โหมดอัปเดตเท่านั้น
+                            $error_details[] = "แถวที่ " . $row . ": ไม่พบรหัสนักศึกษา $stuId ในระบบ (ข้ามไป)";
+                            continue;
+                        } else {
+                            // โหมดเพิ่มหรือทั้งสองโหมด
+                            $insertResult = $this->insertStudent(
+                                $stuId, 
+                                $stuFname, 
+                                $stuLname, 
+                                $stuPhone, 
+                                $stuEmail, 
+                                $birthdate, 
+                                $religion, 
+                                $nationality, 
+                                $planId, 
+                                $titleId, 
+                                $profId, 
+                                $majId, 
+                                $curriId, 
+                                $isStatus
+                            );
+                            
+                            if ($insertResult) {
+                                $inserted++;
+                                // สร้างบัญชีผู้ใช้สำหรับนักศึกษาใหม่
+                                $this->createLoginForStudent($stuId);
+                            } else {
+                                $errors++;
+                                $error_details[] = "แถวที่ " . $row . ": เกิดข้อผิดพลาดในการเพิ่มข้อมูลนักศึกษา $stuId";
                             }
                         }
                     }
-                } else {
-                    // ถ้าไม่ระบุหลักสูตร ให้ใช้หลักสูตรล่าสุดของสาขา
-                    $sql = "SELECT Curri_id FROM curriculum WHERE Maj_id = :maj_id ORDER BY Curri_start DESC LIMIT 1";
-                    $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
-                    if ($stmt && $stmt->rowCount() > 0) {
-                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                        $curriId = $result['Curri_id'];
-                    } else {
-                        throw new Exception("ไม่พบหลักสูตรสำหรับสาขา $majorName");
-                    }
+                } catch (Exception $e) {
+                    $errors++;
+                    $error_details[] = "แถวที่ " . $row . ": " . $e->getMessage();
                 }
-                
-                // ตรวจสอบสถานะ
-                if (!empty($isStatus)) {
-                    if (!in_array($isStatus, ['1', '2', '3', '4'])) {
-                        $isStatus = '2'; // ค่าเริ่มต้น: สถานะปกติ
-                        $error_details[] = "แถวที่ " . $row . ": สถานะไม่ถูกต้อง ใช้ค่าเริ่มต้น (ปกติ) แทน";
-                    }
-                } else {
-                    $isStatus = '2'; // ค่าเริ่มต้น: สถานะปกติ
-                }
-                
-                // ตรวจสอบรูปแบบเบอร์โทรศัพท์
-                if (!empty($stuPhone)) {
-                    // ลบอักขระที่ไม่ใช่ตัวเลขออก
-                    $stuPhone = preg_replace('/[^0-9]/', '', $stuPhone);
-                    if (strlen($stuPhone) !== 10) {
-                        $error_details[] = "แถวที่ " . $row . ": เบอร์โทรศัพท์ไม่ถูกต้อง (ควรมี 10 หลัก)";
-                    }
-                }
-                
-                // ตรวจสอบว่ามีนักศึกษานี้ในระบบแล้วหรือไม่
-                $existingStudent = $this->getStudentById($stuId);
-                
-                // ตัดสินใจว่าจะเพิ่มหรืออัปเดตข้อมูล
-                if ($existingStudent) {
-                    // มีข้อมูลนักศึกษานี้อยู่แล้ว
-                    if ($importMode == 'add') {
-                        // โหมดเพิ่มข้อมูลใหม่เท่านั้น
-                        $error_details[] = "แถวที่ " . $row . ": รหัสนักศึกษา $stuId มีอยู่ในระบบแล้ว (ข้ามไป)";
-                        continue;
-                    } else {
-                        // โหมดอัปเดตหรือทั้งสองโหมด
-                        $updateResult = $this->updateStudent(
-                            $stuId, 
-                            $stuFname, 
-                            $stuLname, 
-                            $stuPhone, 
-                            $stuEmail, 
-                            $birthdate, 
-                            $religion, 
-                            $nationality, 
-                            $planId, 
-                            $titleId, 
-                            $profId, 
-                            $majId, 
-                            $curriId, 
-                            $isStatus
-                        );
-                        
-                        if ($updateResult) {
-                            $updated++;
-                        } else {
-                            $errors++;
-                            $error_details[] = "แถวที่ " . $row . ": เกิดข้อผิดพลาดในการอัปเดตข้อมูลนักศึกษา $stuId";
-                        }
-                    }
-                } else {
-                    // ไม่มีข้อมูลนักศึกษานี้
-                    if ($importMode == 'update') {
-                        // โหมดอัปเดตเท่านั้น
-                        $error_details[] = "แถวที่ " . $row . ": ไม่พบรหัสนักศึกษา $stuId ในระบบ (ข้ามไป)";
-                        continue;
-                    } else {
-                        // โหมดเพิ่มหรือทั้งสองโหมด
-                        $insertResult = $this->insertStudent(
-                            $stuId, 
-                            $stuFname, 
-                            $stuLname, 
-                            $stuPhone, 
-                            $stuEmail, 
-                            $birthdate, 
-                            $religion, 
-                            $nationality, 
-                            $planId, 
-                            $titleId, 
-                            $profId, 
-                            $majId, 
-                            $curriId, 
-                            $isStatus
-                        );
-                        
-                        if ($insertResult) {
-                            $inserted++;
-                            // สร้างบัญชีผู้ใช้สำหรับนักศึกษาใหม่
-                            $this->createLoginForStudent($stuId);
-                        } else {
-                            $errors++;
-                            $error_details[] = "แถวที่ " . $row . ": เกิดข้อผิดพลาดในการเพิ่มข้อมูลนักศึกษา $stuId";
-                        }
-                    }
-                }
-            } catch (Exception $e) {
-                $errors++;
-                $error_details[] = "แถวที่ " . $row . ": " . $e->getMessage();
             }
-        }
-        
-        // ถ้าไม่มีข้อมูลที่นำเข้าสำเร็จเลย และมีข้อผิดพลาด ให้ rollback
-        if ($inserted == 0 && $updated == 0 && $errors > 0) {
-            $this->db->rollBack();
+            
+            // ถ้าไม่มีข้อมูลที่นำเข้าสำเร็จเลย และมีข้อผิดพลาด ให้ rollback
+            if ($inserted == 0 && $updated == 0 && $errors > 0) {
+                $this->db->rollBack();
+                return [
+                    'status' => false,
+                    'message' => 'ไม่สามารถนำเข้าข้อมูลได้ มีข้อผิดพลาด ' . $errors . ' รายการ',
+                    'error_details' => $error_details
+                ];
+            }
+            
+            // ทุกอย่างเรียบร้อย commit transaction
+            $this->db->commit();
+            
+            return [
+                'status' => true,
+                'inserted' => $inserted,
+                'updated' => $updated,
+                'errors' => $errors,
+                'error_details' => $error_details,
+                'message' => 'นำเข้าข้อมูลสำเร็จ'
+            ];
+        } catch(\Exception $e) {
+            // มีข้อผิดพลาดที่ไม่คาดคิด
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            
+            $this->logError("importStudentsFromExcel error", $e->getMessage());
+            
             return [
                 'status' => false,
-                'message' => 'ไม่สามารถนำเข้าข้อมูลได้ มีข้อผิดพลาด ' . $errors . ' รายการ',
-                'error_details' => $error_details
+                'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()
             ];
         }
-        
-        // ทุกอย่างเรียบร้อย commit transaction
-        $this->db->commit();
-        
-        return [
-            'status' => true,
-            'inserted' => $inserted,
-            'updated' => $updated,
-            'errors' => $errors,
-            'error_details' => $error_details,
-            'message' => 'นำเข้าข้อมูลสำเร็จ'
-        ];
-    } catch(\Exception $e) {
-        // มีข้อผิดพลาดที่ไม่คาดคิด
-        if ($this->db->inTransaction()) {
-            $this->db->rollBack();
-        }
-        
-        $this->logError("importStudentsFromExcel error", $e->getMessage());
-        
-        return [
-            'status' => false,
-            'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()
-        ];
     }
-}
     
     // ---- COMPARISION METHODS ----
 

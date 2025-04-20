@@ -220,9 +220,9 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="student_phone">เบอร์โทรศัพท์ <span class="text-danger">*</span></label>
+                                    <label for="student_phone">เบอร์โทรศัพท์</label>
                                     <input type="text" name="student_phone" id="student_phone" class="form-control"
-                                        required maxlength="10" placeholder="เบอร์โทรศัพท์">
+                                        maxlength="10" placeholder="เบอร์โทรศัพท์">
                                     <small class="form-text text-muted">ตัวอย่าง: 0812345678</small>
                                 </div>
                             </div>
@@ -405,10 +405,9 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="edit_student_phone">เบอร์โทรศัพท์ <span
-                                            class="text-danger">*</span></label>
+                                    <label for="edit_student_phone">เบอร์โทรศัพท์</label>
                                     <input type="text" name="edit_student_phone" id="edit_student_phone"
-                                        class="form-control" value="<?php echo $editStudent['Stu_phone']; ?>" required
+                                        class="form-control" value="<?php echo $editStudent['Stu_phone']; ?>"
                                         maxlength="10">
                                 </div>
                             </div>
@@ -560,6 +559,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
     <div class="modal-backdrop fade show"></div>
     <?php endif; ?>
 
+    <!-- Modal: นำเข้าข้อมูลนักศึกษา -->
     <div class="modal fade" id="importStudentModal" tabindex="-1" aria-labelledby="importStudentLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -619,14 +619,13 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                     <li><strong>คำนำหน้า</strong> - ต้องตรงกับข้อมูลในระบบ เช่น นาย, นางสาว</li>
                                     <li><strong>ชื่อ</strong></li>
                                     <li><strong>นามสกุล</strong></li>
-                                    <li><strong>เบอร์โทรศัพท์</strong> - ต้องเป็นตัวเลข 10 หลัก</li>
                                     <li><strong>สาขาวิชา</strong> - ต้องตรงกับชื่อสาขาในระบบ</li>
                                     <li><strong>แผนการเรียน</strong> - ต้องตรงกับชื่อแผนการเรียนหรือชื่อย่อในระบบ</li>
-                                    <li><strong>อาจารย์ที่ปรึกษา</strong> - ระบุเป็นรหัสอาจารย์ หรือชื่อ-นามสกุลอาจารย์
-                                    </li>
+                                    <li><strong>อาจารย์ที่ปรึกษา</strong> - ระบุเป็นรหัสอาจารย์ หรือชื่อ-นามสกุลอาจารย์</li>
                                 </ol>
                                 <p><strong>คอลัมน์ที่เพิ่มเติมได้ (ไม่บังคับ):</strong></p>
                                 <ul>
+                                    <li><strong>เบอร์โทรศัพท์</strong> - ถ้าระบุต้องเป็นตัวเลข 10 หลัก</li>
                                     <li><strong>อีเมล</strong></li>
                                     <li><strong>วันเกิด</strong> - รูปแบบ yyyy-mm-dd หรือ dd/mm/yyyy</li>
                                     <li><strong>ศาสนา</strong></li>
@@ -995,7 +994,21 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
 <script>
 // รอให้เอกสาร HTML โหลดเสร็จก่อน
 $(document).ready(function() {
-    console.log("Document ready!"); // เพื่อตรวจสอบว่า JavaScript ทำงาน
+    console.log("Document is ready!"); // เพื่อตรวจสอบว่า JavaScript ทำงาน
+    console.log("jQuery loaded: ", typeof jQuery !== 'undefined');
+    console.log("bsCustomFileInput loaded: ", typeof bsCustomFileInput !== 'undefined');
+    
+    // ตรวจสอบว่า bsCustomFileInput ถูกโหลดหรือไม่
+    if (typeof bsCustomFileInput !== 'undefined') {
+        bsCustomFileInput.init();
+        console.log("bsCustomFileInput initialized");
+    } else {
+        console.error("bsCustomFileInput library is not loaded");
+    }
+
+    // ตรวจสอบว่า element ถูกพบหรือไม่
+    console.log("import_file element found: ", $('#import_file').length);
+    console.log("custom-file-label element found: ", $('#import_file').next('.custom-file-label').length);
 
     // ตรวจสอบรหัสนักศึกษาเมื่อกรอก
     $('#student_id').on('input', function() {
@@ -1007,39 +1020,79 @@ $(document).ready(function() {
         this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
     });
 
-    // แสดงชื่อไฟล์ที่เลือกในช่องอัปโหลด
+    // จัดการการแสดงชื่อไฟล์เมื่อมีการเลือกไฟล์
     $('#import_file').on('change', function() {
-        const fileName = $(this).val().split('\\').pop();
-        const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
-
-        if (fileName) {
-            if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-                $(this).next('.custom-file-label').html(fileName);
-            } else {
-                alert('โปรดเลือกไฟล์ Excel (.xlsx, .xls) เท่านั้น');
-                $(this).val('').next('.custom-file-label').html('เลือกไฟล์...');
-            }
+        const file = this.files[0];
+        const fileName = file ? file.name : 'เลือกไฟล์...';
+        const fileExt = fileName.split('.').pop().toLowerCase();
+        
+        // ตรวจสอบนามสกุลไฟล์
+        if (file && (fileExt === 'xlsx' || fileExt === 'xls')) {
+            // แสดงชื่อไฟล์ที่เลือก
+            $(this).next('.custom-file-label').html(fileName);
+        } else if (file) {
+            // ถ้าไฟล์ไม่ถูกต้อง
+            Swal.fire({
+                icon: 'error',
+                title: 'ไฟล์ไม่ถูกต้อง',
+                text: 'โปรดเลือกไฟล์ Excel (.xlsx, .xls) เท่านั้น',
+                confirmButtonText: 'เข้าใจแล้ว'
+            });
+            // รีเซ็ตการเลือกไฟล์
+            $(this).val('');
+            $(this).next('.custom-file-label').html('เลือกไฟล์...');
         }
+    });
+
+    // เพิ่มการตรวจสอบก่อนส่งฟอร์ม
+    $('#importStudentForm').on('submit', function(e) {
+        const fileInput = $('#import_file');
+        
+        if (!fileInput.val()) {
+            e.preventDefault();
+            
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'กรุณาเลือกไฟล์',
+                    text: 'โปรดเลือกไฟล์ Excel สำหรับนำเข้าข้อมูล',
+                    confirmButtonText: 'เข้าใจแล้ว'
+                });
+            } else {
+                alert('กรุณาเลือกไฟล์ Excel สำหรับนำเข้าข้อมูล');
+            }
+            
+            return false;
+        }
+        
+        // แสดง loading ระหว่างอัปโหลด
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'กำลังนำเข้าข้อมูล...',
+                html: 'โปรดรอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        }
+        
+        return true;
     });
 
     // เพิ่มการตรวจสอบฟอร์มแบบ Bootstrap 4
     (function() {
         'use strict';
-        window.addEventListener('load', function() {
-            // ดึงฟอร์มที่ต้องการตรวจสอบ
-            var forms = document.getElementsByClassName('needs-validation');
-
-            // วนลูปเพื่อป้องกันการส่งฟอร์มและตรวจสอบ
-            Array.prototype.filter.call(forms, function(form) {
-                form.addEventListener('submit', function(event) {
-                    if (form.checkValidity() === false) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    form.classList.add('was-validated');
-                }, false);
-            });
-        }, false);
+        var forms = document.getElementsByClassName('needs-validation');
+        Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
     })();
 
     // เมื่อเลือกหลักสูตร ให้ตั้งค่าสาขาอัตโนมัติ
@@ -1128,65 +1181,8 @@ $(document).ready(function() {
     if ($('#edit_major_id').length > 0) {
         $('#edit_major_id').trigger('change');
     }
-});
 
-// ฟังก์ชันสำหรับยืนยันการลบ
-function confirmDelete(id) {
-    if (confirm('คุณต้องการลบนักศึกษารหัส ' + id + ' ใช่หรือไม่?')) {
-        document.getElementById('deleteForm' + id).submit();
-    }
-}
-
-// แสดงชื่อไฟล์ที่เลือกในช่องอัปโหลด
-$('#import_file').on('change', function() {
-    const fileName = $(this).val().split('\\').pop();
-    const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
-
-    if (fileName) {
-        if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-            $(this).next('.custom-file-label').html(fileName);
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'ไฟล์ไม่ถูกต้อง',
-                text: 'โปรดเลือกไฟล์ Excel (.xlsx, .xls) เท่านั้น',
-                confirmButtonText: 'เข้าใจแล้ว'
-            });
-            $(this).val('').next('.custom-file-label').html('เลือกไฟล์...');
-        }
-    }
-});
-
-// เพิ่มการตรวจสอบก่อนส่งฟอร์ม
-$('#importStudentForm').on('submit', function(e) {
-    const fileInput = $('#import_file');
-    
-    if (fileInput.val() === '') {
-        e.preventDefault();
-        Swal.fire({
-            icon: 'warning',
-            title: 'กรุณาเลือกไฟล์',
-            text: 'โปรดเลือกไฟล์ Excel สำหรับนำเข้าข้อมูล',
-            confirmButtonText: 'เข้าใจแล้ว'
-        });
-        return false;
-    }
-    
-    // แสดง loading ระหว่างอัปโหลด
-    Swal.fire({
-        title: 'กำลังนำเข้าข้อมูล...',
-        html: 'โปรดรอสักครู่',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-    
-    return true;
-});
-
-// แสดงข้อความผิดพลาดการนำเข้า (ถ้ามี)
-$(document).ready(function() {
+    // แสดงข้อความผิดพลาดการนำเข้า (ถ้ามี)
     <?php if(isset($_SESSION['error_details']) && !empty($_SESSION['error_details'])): ?>
     
     // สร้างตารางแสดงข้อผิดพลาด
@@ -1206,6 +1202,25 @@ $(document).ready(function() {
     <?php unset($_SESSION['error_details']); ?>
     <?php endif; ?>
 });
+
+// ฟังก์ชันสำหรับการรีเซ็ตฟอร์มอัปโหลด
+function resetImportForm() {
+    $('#import_file').val('');
+    $('#import_file').next('.custom-file-label').html('เลือกไฟล์...');
+    $('#import_mode').val('both');
+}
+
+// เมื่อปิด modal ให้รีเซ็ตฟอร์ม
+$('#importStudentModal').on('hidden.bs.modal', function () {
+    resetImportForm();
+});
+
+// ฟังก์ชันสำหรับยืนยันการลบ
+function confirmDelete(id) {
+    if (confirm('คุณต้องการลบนักศึกษารหัส ' + id + ' ใช่หรือไม่?')) {
+        document.getElementById('deleteForm' + id).submit();
+    }
+}
 
 // เพิ่มฟังก์ชันสำหรับดาวน์โหลดเทมเพลต
 function downloadTemplateFile() {

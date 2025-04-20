@@ -54,8 +54,7 @@ if (isset($_REQUEST['action'])) {
                     
                     // ตรวจสอบข้อมูลที่จำเป็น
                     if (empty($student_id) || empty($title_id) || empty($student_fname) || empty($student_lname) ||
-                        empty($student_phone) || empty($plan_id) || empty($prof_id) || empty($major_id) || 
-                        empty($curriculum_id)) {
+                        empty($plan_id) || empty($prof_id) || empty($major_id) || empty($curriculum_id)) {
                         $_SESSION['error'] = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
                         header("Location: ../index.php?menu=7");
                         exit();
@@ -68,9 +67,16 @@ if (isset($_REQUEST['action'])) {
                         exit();
                     }
                     
-                    // ตรวจสอบรูปแบบเบอร์โทรศัพท์
-                    if (strlen($student_phone) !== 10 || !is_numeric($student_phone)) {
+                    // ตรวจสอบรูปแบบเบอร์โทรศัพท์ (ถ้ามีการกรอก)
+                    if (!empty($student_phone) && (strlen($student_phone) !== 10 || !is_numeric($student_phone))) {
                         $_SESSION['error'] = "เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก";
+                        header("Location: ../index.php?menu=7");
+                        exit();
+                    }
+                    
+                    // ตรวจสอบรูปแบบอีเมลเฉพาะเมื่อมีการกรอก
+                    if (!empty($student_email) && !filter_var($student_email, FILTER_VALIDATE_EMAIL)) {
+                        $_SESSION['error'] = "รูปแบบอีเมลไม่ถูกต้อง";
                         header("Location: ../index.php?menu=7");
                         exit();
                     }
@@ -157,16 +163,23 @@ if (isset($_REQUEST['action'])) {
                     
                     // ตรวจสอบข้อมูลที่จำเป็น
                     if (empty($student_id) || empty($title_id) || empty($student_fname) || empty($student_lname) ||
-                        empty($student_phone) || empty($plan_id) || empty($prof_id) || empty($major_id) ||
+                        empty($plan_id) || empty($prof_id) || empty($major_id) ||
                         empty($curriculum_id)) {
                         $_SESSION['error'] = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
                         header("Location: ../index.php?menu=7&edit=" . $student_id);
                         exit();
                     }
                     
-                    // ตรวจสอบรูปแบบเบอร์โทรศัพท์
-                    if (strlen($student_phone) !== 10 || !is_numeric($student_phone)) {
+                    // ตรวจสอบรูปแบบเบอร์โทรศัพท์ (ถ้ามีการกรอก)
+                    if (!empty($student_phone) && (strlen($student_phone) !== 10 || !is_numeric($student_phone))) {
                         $_SESSION['error'] = "เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก";
+                        header("Location: ../index.php?menu=7&edit=" . $student_id);
+                        exit();
+                    }
+                    
+                    // ตรวจสอบรูปแบบอีเมลเฉพาะเมื่อมีการกรอก
+                    if (!empty($student_email) && !filter_var($student_email, FILTER_VALIDATE_EMAIL)) {
+                        $_SESSION['error'] = "รูปแบบอีเมลไม่ถูกต้อง";
                         header("Location: ../index.php?menu=7&edit=" . $student_id);
                         exit();
                     }
@@ -252,71 +265,69 @@ if (isset($_REQUEST['action'])) {
             exit();
             break;
             
-        // แก้ไขส่วนนี้ในไฟล์ process_student.php ในส่วนของ case 'import':
+        case 'import':
+            // นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
+            if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['import_file'])) {
+                try {
+                    // ตรวจสอบไฟล์ที่อัปโหลด
+                    if ($_FILES['import_file']['error'] !== 0) {
+                        $_SESSION['error'] = "เกิดข้อผิดพลาดในการอัปโหลดไฟล์: " . getFileUploadErrorMessage($_FILES['import_file']['error']);
+                        header("Location: ../index.php?menu=7");
+                        exit();
+                    }
 
-case 'import':
-    // นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
-    if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['import_file'])) {
-        try {
-            // ตรวจสอบไฟล์ที่อัปโหลด
-            if ($_FILES['import_file']['error'] !== 0) {
-                $_SESSION['error'] = "เกิดข้อผิดพลาดในการอัปโหลดไฟล์: " . getFileUploadErrorMessage($_FILES['import_file']['error']);
-                header("Location: ../index.php?menu=7");
-                exit();
-            }
-
-            // ตรวจสอบนามสกุลไฟล์
-            $extension = strtolower(pathinfo($_FILES['import_file']['name'], PATHINFO_EXTENSION));
-            if (!in_array($extension, ['xlsx', 'xls'])) {
-                $_SESSION['error'] = "รองรับเฉพาะไฟล์ Excel (.xlsx, .xls) เท่านั้น";
-                header("Location: ../index.php?menu=7");
-                exit();
-            }
-            
-            // เลือกรูปแบบการนำเข้า: เพิ่มใหม่หรืออัปเดต
-            $importMode = isset($_POST['import_mode']) ? $_POST['import_mode'] : 'both';
-            
-            // ส่งไฟล์ไปประมวลผล
-            $result = $controller->importStudentsFromExcel($_FILES['import_file'], $importMode);
-            
-            if ($result['status']) {
-                // สร้างข้อความแจ้งความสำเร็จ
-                $successMessage = "นำเข้าข้อมูลนักศึกษาสำเร็จ " . $result['inserted'] . " รายการ";
-                if ($result['updated'] > 0) {
-                    $successMessage .= ", อัปเดต " . $result['updated'] . " รายการ";
-                }
-                if ($result['errors'] > 0) {
-                    $successMessage .= " (พบข้อผิดพลาด " . $result['errors'] . " รายการ)";
+                    // ตรวจสอบนามสกุลไฟล์
+                    $extension = strtolower(pathinfo($_FILES['import_file']['name'], PATHINFO_EXTENSION));
+                    if (!in_array($extension, ['xlsx', 'xls'])) {
+                        $_SESSION['error'] = "รองรับเฉพาะไฟล์ Excel (.xlsx, .xls) เท่านั้น";
+                        header("Location: ../index.php?menu=7");
+                        exit();
+                    }
+                    
+                    // เลือกรูปแบบการนำเข้า: เพิ่มใหม่หรืออัปเดต
+                    $importMode = isset($_POST['import_mode']) ? $_POST['import_mode'] : 'both';
+                    
+                    // ส่งไฟล์ไปประมวลผล
+                    $result = $controller->importStudentsFromExcel($_FILES['import_file'], $importMode);
+                    
+                    if ($result['status']) {
+                        // สร้างข้อความแจ้งความสำเร็จ
+                        $successMessage = "นำเข้าข้อมูลนักศึกษาสำเร็จ " . $result['inserted'] . " รายการ";
+                        if ($result['updated'] > 0) {
+                            $successMessage .= ", อัปเดต " . $result['updated'] . " รายการ";
+                        }
+                        if ($result['errors'] > 0) {
+                            $successMessage .= " (พบข้อผิดพลาด " . $result['errors'] . " รายการ)";
+                        }
+                        
+                        $_SESSION['success'] = $successMessage;
+                        
+                        // บันทึกรายละเอียดข้อผิดพลาด (ถ้ามี) สำหรับแสดงในโมดัล
+                        if (!empty($result['error_details'])) {
+                            $_SESSION['error_details'] = $result['error_details'];
+                        }
+                    } else {
+                        $_SESSION['error'] = $result['message'];
+                        error_log("Import students failed: " . $result['message']);
+                        
+                        // บันทึกรายละเอียดข้อผิดพลาด (ถ้ามี)
+                        if (!empty($result['error_details'])) {
+                            $_SESSION['error_details'] = $result['error_details'];
+                        }
+                    }
+                } catch (Exception $e) {
+                    $_SESSION['error'] = "เกิดข้อผิดพลาด: " . $e->getMessage();
+                    error_log("Exception in import students: " . $e->getMessage());
                 }
                 
-                $_SESSION['success'] = $successMessage;
-                
-                // บันทึกรายละเอียดข้อผิดพลาด (ถ้ามี) สำหรับแสดงในโมดัล
-                if (!empty($result['error_details'])) {
-                    $_SESSION['error_details'] = $result['error_details'];
-                }
+                header("Location: ../index.php?menu=7");
+                exit();
             } else {
-                $_SESSION['error'] = $result['message'];
-                error_log("Import students failed: " . $result['message']);
-                
-                // บันทึกรายละเอียดข้อผิดพลาด (ถ้ามี)
-                if (!empty($result['error_details'])) {
-                    $_SESSION['error_details'] = $result['error_details'];
-                }
+                $_SESSION['error'] = "ไม่พบไฟล์ที่อัปโหลด";
+                header("Location: ../index.php?menu=7");
+                exit();
             }
-        } catch (Exception $e) {
-            $_SESSION['error'] = "เกิดข้อผิดพลาด: " . $e->getMessage();
-            error_log("Exception in import students: " . $e->getMessage());
-        }
-        
-        header("Location: ../index.php?menu=7");
-        exit();
-    } else {
-        $_SESSION['error'] = "ไม่พบไฟล์ที่อัปโหลด";
-        header("Location: ../index.php?menu=7");
-        exit();
-    }
-    break;
+            break;
     }
 } else {
     // ถ้าไม่มีการส่ง action มา ให้กลับไปที่หน้ารายการนักศึกษา

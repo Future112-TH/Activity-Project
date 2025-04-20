@@ -11,3 +11,9 @@
 
 <!-- Theme style -->
 <link rel="stylesheet" href="css/adminlte.min.css">
+
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<!-- bs-custom-file-input -->
+<script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script>
