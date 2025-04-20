@@ -252,44 +252,99 @@ if (isset($_REQUEST['action'])) {
             exit();
             break;
             
-        case 'import':
-            // นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
-            if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['import_file'])) {
-                try {
-                    $result = $controller->importStudentsFromExcel($_FILES['import_file']);
-                    
-                    if ($result['status']) {
-                        $_SESSION['success'] = "นำเข้าข้อมูลนักศึกษาสำเร็จ " . $result['inserted'] . " รายการ";
-                        if ($result['errors'] > 0) {
-                            $_SESSION['success'] .= " มีข้อผิดพลาด " . $result['errors'] . " รายการ";
-                        }
-                    } else {
-                        $_SESSION['error'] = $result['message'];
-                        error_log("Import students failed: " . $result['message']);
-                    }
-                } catch (Exception $e) {
-                    $_SESSION['error'] = "เกิดข้อผิดพลาด: " . $e->getMessage();
-                    error_log("Exception in import students: " . $e->getMessage());
-                }
-                
-                header("Location: ../index.php?menu=7");
-                exit();
-            } else {
-                $_SESSION['error'] = "ไม่พบไฟล์ที่อัพโหลด";
+        // แก้ไขส่วนนี้ในไฟล์ process_student.php ในส่วนของ case 'import':
+
+case 'import':
+    // นำเข้าข้อมูลนักศึกษาจากไฟล์ Excel
+    if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['import_file'])) {
+        try {
+            // ตรวจสอบไฟล์ที่อัปโหลด
+            if ($_FILES['import_file']['error'] !== 0) {
+                $_SESSION['error'] = "เกิดข้อผิดพลาดในการอัปโหลดไฟล์: " . getFileUploadErrorMessage($_FILES['import_file']['error']);
                 header("Location: ../index.php?menu=7");
                 exit();
             }
-            break;
+
+            // ตรวจสอบนามสกุลไฟล์
+            $extension = strtolower(pathinfo($_FILES['import_file']['name'], PATHINFO_EXTENSION));
+            if (!in_array($extension, ['xlsx', 'xls'])) {
+                $_SESSION['error'] = "รองรับเฉพาะไฟล์ Excel (.xlsx, .xls) เท่านั้น";
+                header("Location: ../index.php?menu=7");
+                exit();
+            }
             
-        default:
-            // ถ้าไม่มี action ที่ตรงกับเงื่อนไข ให้กลับไปที่หน้ารายการนักศึกษา
-            header("Location: ../index.php?menu=7");
-            exit();
-            break;
+            // เลือกรูปแบบการนำเข้า: เพิ่มใหม่หรืออัปเดต
+            $importMode = isset($_POST['import_mode']) ? $_POST['import_mode'] : 'both';
+            
+            // ส่งไฟล์ไปประมวลผล
+            $result = $controller->importStudentsFromExcel($_FILES['import_file'], $importMode);
+            
+            if ($result['status']) {
+                // สร้างข้อความแจ้งความสำเร็จ
+                $successMessage = "นำเข้าข้อมูลนักศึกษาสำเร็จ " . $result['inserted'] . " รายการ";
+                if ($result['updated'] > 0) {
+                    $successMessage .= ", อัปเดต " . $result['updated'] . " รายการ";
+                }
+                if ($result['errors'] > 0) {
+                    $successMessage .= " (พบข้อผิดพลาด " . $result['errors'] . " รายการ)";
+                }
+                
+                $_SESSION['success'] = $successMessage;
+                
+                // บันทึกรายละเอียดข้อผิดพลาด (ถ้ามี) สำหรับแสดงในโมดัล
+                if (!empty($result['error_details'])) {
+                    $_SESSION['error_details'] = $result['error_details'];
+                }
+            } else {
+                $_SESSION['error'] = $result['message'];
+                error_log("Import students failed: " . $result['message']);
+                
+                // บันทึกรายละเอียดข้อผิดพลาด (ถ้ามี)
+                if (!empty($result['error_details'])) {
+                    $_SESSION['error_details'] = $result['error_details'];
+                }
+            }
+        } catch (Exception $e) {
+            $_SESSION['error'] = "เกิดข้อผิดพลาด: " . $e->getMessage();
+            error_log("Exception in import students: " . $e->getMessage());
+        }
+        
+        header("Location: ../index.php?menu=7");
+        exit();
+    } else {
+        $_SESSION['error'] = "ไม่พบไฟล์ที่อัปโหลด";
+        header("Location: ../index.php?menu=7");
+        exit();
+    }
+    break;
     }
 } else {
     // ถ้าไม่มีการส่ง action มา ให้กลับไปที่หน้ารายการนักศึกษา
     header("Location: ../index.php?menu=7");
     exit();
+}
+
+/**
+ * ช่วยแปลข้อความแสดงข้อผิดพลาดในการอัปโหลดไฟล์
+ */
+function getFileUploadErrorMessage($error_code) {
+    switch ($error_code) {
+        case UPLOAD_ERR_INI_SIZE:
+            return 'ไฟล์มีขนาดใหญ่เกินค่า upload_max_filesize ในไฟล์ php.ini';
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'ไฟล์มีขนาดใหญ่เกินค่า MAX_FILE_SIZE ที่กำหนดในฟอร์ม HTML';
+        case UPLOAD_ERR_PARTIAL:
+            return 'ไฟล์ถูกอัปโหลดเพียงบางส่วนเท่านั้น';
+        case UPLOAD_ERR_NO_FILE:
+            return 'ไม่มีไฟล์ถูกอัปโหลด';
+        case UPLOAD_ERR_NO_TMP_DIR:
+            return 'ไม่พบโฟลเดอร์ชั่วคราวสำหรับเก็บไฟล์';
+        case UPLOAD_ERR_CANT_WRITE:
+            return 'ไม่สามารถเขียนไฟล์ลงดิสก์ได้';
+        case UPLOAD_ERR_EXTENSION:
+            return 'การอัปโหลดไฟล์ถูกหยุดโดย extension';
+        default:
+            return 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุในการอัปโหลดไฟล์';
+    }
 }
 ?>

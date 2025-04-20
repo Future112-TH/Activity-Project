@@ -54,7 +54,7 @@ if (isset($_REQUEST['action'])) {
                     empty($act_semester) || empty($act_status) || empty($act_year) || empty($act_type_id) || empty($maj_id)) {
                     $_SESSION['error'] = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
                     error_log("Error: Missing required fields for activity add");
-                    header("Location: ../index.php?menu=9");
+                    header("Location: ../index.php?menu=10");
                     exit();
                 }
                 
@@ -65,7 +65,7 @@ if (isset($_REQUEST['action'])) {
                 if ($stop < $start) {
                     $_SESSION['error'] = "วันที่สิ้นสุดกิจกรรมต้องไม่น้อยกว่าวันที่เริ่มกิจกรรม";
                     error_log("Error: End date is before start date");
-                    header("Location: ../index.php?menu=9");
+                    header("Location: ../index.php?menu=10");
                     exit();
                 }
                 
@@ -80,7 +80,7 @@ if (isset($_REQUEST['action'])) {
                     error_log("Error: Failed to add activity");
                 }
                 
-                header("Location: ../index.php?menu=9");
+                header("Location: ../index.php?menu=10");
                 exit();
             }
             break;
@@ -119,7 +119,7 @@ if (isset($_REQUEST['action'])) {
                     empty($act_semester) || empty($act_status) || empty($act_year) || empty($act_type_id) || empty($maj_id)) {
                     $_SESSION['error'] = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
                     error_log("Error: Missing required fields for activity edit");
-                    header("Location: ../index.php?menu=9&edit=" . $act_id);
+                    header("Location: ../index.php?menu=10&edit=" . $act_id);
                     exit();
                 }
                 
@@ -130,7 +130,7 @@ if (isset($_REQUEST['action'])) {
                 if ($stop < $start) {
                     $_SESSION['error'] = "วันที่สิ้นสุดกิจกรรมต้องไม่น้อยกว่าวันที่เริ่มกิจกรรม";
                     error_log("Error: End date is before start date");
-                    header("Location: ../index.php?menu=9&edit=" . $act_id);
+                    header("Location: ../index.php?menu=10&edit=" . $act_id);
                     exit();
                 }
                 
@@ -145,7 +145,7 @@ if (isset($_REQUEST['action'])) {
                     error_log("Error: Failed to update activity");
                 }
                 
-                header("Location: ../index.php?menu=9");
+                header("Location: ../index.php?menu=10");
                 exit();
             }
             break;
@@ -170,19 +170,19 @@ if (isset($_REQUEST['action'])) {
                 error_log("Error: Activity ID not provided for delete");
             }
             
-            header("Location: ../index.php?menu=9");
+            header("Location: ../index.php?menu=10");
             exit();
             break;
             
         default:
             // ถ้าไม่มี action ที่ตรงกับเงื่อนไข ให้กลับไปที่หน้ารายการกิจกรรม
-            header("Location: ../index.php?menu=9");
+            header("Location: ../index.php?menu=10");
             exit();
             break;
     }
 } else {
     // ถ้าไม่มีการส่ง action มา ให้กลับไปที่หน้ารายการกิจกรรม
-    header("Location: ../index.php?menu=9");
+    header("Location: ../index.php?menu=10");
     exit();
 }
 ?>

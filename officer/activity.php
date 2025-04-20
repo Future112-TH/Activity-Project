@@ -131,11 +131,11 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                     class="badge badge-<?php echo $statusClass; ?>"><?php echo $row['ActStatus']; ?></span>
                                             </td>
                                             <td>
-                                                <a href="index.php?menu=9&view=<?php echo $row['Act_id']; ?>"
+                                                <a href="index.php?menu=10&view=<?php echo $row['Act_id']; ?>"
                                                     class="btn btn-info btn-sm">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                                <a href="index.php?menu=9&edit=<?php echo $row['Act_id']; ?>"
+                                                <a href="index.php?menu=10&edit=<?php echo $row['Act_id']; ?>"
                                                     class="btn btn-warning btn-sm">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
@@ -259,11 +259,19 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="act_year">ปีที่จัด <span class="text-danger">*</span></label>
-                                    <input type="date" name="act_year" id="act_year" class="form-control" required>
-                                    <small class="form-text text-muted">เลือกปีที่จัด (ใช้ปีเต็มเช่น 2025)</small>
+                                    <select name="act_year" id="act_year" class="form-control" required>
+                                        <option value="">เลือกปีที่จัด</option>
+                                        <?php 
+                                        $currentYear = date('Y');
+                                        for ($i = 0; $i < 6; $i++) {
+                                            $yearOption = $currentYear - $i;
+                                            echo "<option value=\"$yearOption-01-01\">$yearOption</option>";
+                                        }
+                                        ?>
+                                    </select>
                                 </div>
                             </div>
-                            
+
                             <!-- เพิ่มฟิลด์ซ่อนสำหรับเก็บค่ารวมภาคเรียนและปีการศึกษา -->
                             <input type="hidden" name="act_semester" id="act_semester" value="">
                         </div>
@@ -331,7 +339,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                         <h5 class="modal-title">
                             <i class="fas fa-edit mr-1"></i> แก้ไขข้อมูลกิจกรรม
                         </h5>
-                        <a href="index.php?menu=9" class="close" aria-label="Close">
+                        <a href="index.php?menu=10" class="close" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </a>
                     </div>
@@ -387,8 +395,10 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
-                                    <label for="edit_act_year_number">ปีการศึกษา <span class="text-danger">*</span></label>
-                                    <select name="edit_act_year_number" id="edit_act_year_number" class="form-control" required>
+                                    <label for="edit_act_year_number">ปีการศึกษา <span
+                                            class="text-danger">*</span></label>
+                                    <select name="edit_act_year_number" id="edit_act_year_number" class="form-control"
+                                        required>
                                         <option value="">เลือกปีการศึกษา</option>
                                         <?php 
                                         $currentYear = date('Y') + 543; // เปลี่ยนเป็นปี พ.ศ.
@@ -430,7 +440,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                 </div>
                             </div>
                             <!-- เพิ่มฟิลด์ซ่อนสำหรับเก็บค่ารวมภาคเรียนและปีการศึกษา -->
-                            <input type="hidden" name="edit_act_semester" id="edit_act_semester" 
+                            <input type="hidden" name="edit_act_semester" id="edit_act_semester"
                                 value="<?php echo $editActivity['ActSemester']; ?>">
                         </div>
                         <div class="row">
@@ -473,7 +483,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <a href="index.php?menu=9" class="btn btn-secondary">
+                        <a href="index.php?menu=10" class="btn btn-secondary">
                             <i class="fas fa-times mr-1"></i> ยกเลิก
                         </a>
                         <button type="submit" class="btn btn-warning" onclick="combineEditTermAndYearBeforeSubmit()">
@@ -498,7 +508,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                     <h5 class="modal-title text-white">
                         <i class="fas fa-calendar-alt mr-1"></i> รายละเอียดกิจกรรม
                     </h5>
-                    <a href="index.php?menu=9" class="close text-white" aria-label="Close">
+                    <a href="index.php?menu=10" class="close text-white" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </a>
                 </div>
@@ -604,7 +614,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                             if($participants && $participants->rowCount() > 0) {
                                                 while($student = $participants->fetch(PDO::FETCH_ASSOC)) {
                                                     $participantCount++;
-                                                    $totalHours += $student['ActHour'];
+                                                    $totalHours += $student['Act_hour'];
                                             ?>
                                             <tr>
                                                 <td><?php echo $student['Stu_id']; ?></td>
@@ -612,7 +622,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                 </td>
                                                 <td><?php echo $student['Maj_name']; ?></td>
                                                 <td><span class="badge badge-primary">IT</span></td>
-                                                <td><?php echo $student['ActHour']; ?></td>
+                                                <td><?php echo $student['Act_hour']; ?></td>
                                                 <td><span
                                                         class="badge badge-success"><?php echo $student['CheckIn']; ?></span>
                                                 </td>
@@ -641,7 +651,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a href="index.php?menu=9" class="btn btn-secondary">
+                    <a href="index.php?menu=10" class="btn btn-secondary">
                         <i class="fas fa-times mr-1"></i> ปิด
                     </a>
                 </div>
@@ -651,20 +661,20 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
     <div class="modal-backdrop fade show"></div>
     <?php endif; ?>
 </div>
+<?php require_once 'includes/tablejs.php' ?>
 
-<!-- เพิ่ม JavaScript นี้ก่อน <?php require_once 'includes/tablejs.php' ?> -->
 <script type="text/javascript">
 // JavaScript รวมสำหรับการจัดการฟอร์มกิจกรรม
 $(document).ready(function() {
     console.log("Activity page and script loaded");
-    
+
     // ===== ฟังก์ชันสำหรับการรวมค่าภาคเรียนและปีการศึกษา =====
-    
+
     // สำหรับฟอร์มเพิ่มกิจกรรม
     window.combineTermAndYearBeforeSubmit = function() {
         const term = $('#act_term').val();
         const year = $('#act_year_number').val();
-        
+
         if (term && year) {
             const semester = term + '/' + year;
             $('#act_semester').val(semester);
@@ -675,12 +685,12 @@ $(document).ready(function() {
             return false;
         }
     };
-    
+
     // สำหรับฟอร์มแก้ไขกิจกรรม
     window.combineEditTermAndYearBeforeSubmit = function() {
         const term = $('#edit_act_term').val();
         const year = $('#edit_act_year_number').val();
-        
+
         if (term && year) {
             const semester = term + '/' + year;
             $('#edit_act_semester').val(semester);
@@ -691,13 +701,13 @@ $(document).ready(function() {
             return false;
         }
     };
-    
+
     // ===== การจัดการฟอร์มเพิ่มกิจกรรม =====
-    
+
     // เมื่อเปิดโมดัลเพิ่มกิจกรรม ตั้งค่าเริ่มต้น
     $('#addActivityModal').on('shown.bs.modal', function() {
         console.log("Add modal shown");
-        
+
         // ตั้งค่าวันที่ปัจจุบัน
         const today = new Date();
         const formattedDate = today.toISOString().substr(0, 10);
@@ -705,15 +715,15 @@ $(document).ready(function() {
 
         // ตั้งค่าปีที่จัด (ค.ศ.)
         $('#act_year').val(today.getFullYear() + "-01-01");
-        
+
         // ตั้งค่าปีการศึกษาปัจจุบัน (พ.ศ.)
         const currentThaiYear = today.getFullYear() + 543;
         $('#act_year_number').val(currentThaiYear);
-        
+
         // ตั้งค่าภาคเรียนตามเดือนปัจจุบัน
         const currentMonth = today.getMonth() + 1;
         let currentTerm = "1"; // ค่าเริ่มต้น
-        
+
         if (currentMonth >= 6 && currentMonth <= 10) {
             currentTerm = "1";
         } else if (currentMonth >= 11 || currentMonth <= 3) {
@@ -721,47 +731,48 @@ $(document).ready(function() {
         } else {
             currentTerm = "3";
         }
-        
+
         $('#act_term').val(currentTerm);
-        
+
         // สร้างค่า act_semester จากภาคเรียนและปีการศึกษา
         combineTermAndYearBeforeSubmit();
-        console.log("Add form - Initial values set - Term: " + currentTerm + ", Year: " + currentThaiYear);
+        console.log("Add form - Initial values set - Term: " + currentTerm + ", Year: " +
+            currentThaiYear);
     });
 
     // เมื่อเลือกวันที่เริ่ม ให้กำหนดวันที่สิ้นสุดเป็นวันเดียวกัน
     $('#act_start_date').on('change', function() {
         $('#act_stop_date').val($(this).val());
     });
-    
+
     // รวมค่าเมื่อมีการเปลี่ยนแปลงในฟอร์มเพิ่ม
     $('#act_term, #act_year_number').on('change', function() {
         console.log("Add form - " + $(this).attr('id') + " changed to " + $(this).val());
         combineTermAndYearBeforeSubmit();
     });
-    
+
     // ตรวจสอบฟอร์มเพิ่มกิจกรรมก่อนส่ง
     $('#addActivityForm').on('submit', function(e) {
         console.log("Add form submitted");
-        
+
         // รวมค่าภาคเรียนและปีการศึกษาอีกครั้ง
         if (!combineTermAndYearBeforeSubmit()) {
             e.preventDefault();
             alert('กรุณาเลือกภาคเรียนและปีการศึกษาให้ครบถ้วน');
             return false;
         }
-        
+
         // ตรวจสอบค่า Semester
         const actSemester = $('#act_semester').val();
         console.log("Add form - Submitting with semester value: " + actSemester);
-        
+
         if (!actSemester) {
             console.error("Add form - Semester value is empty!");
             e.preventDefault();
             alert('ค่าภาคเรียน/ปีการศึกษารวมกันว่างเปล่า กรุณาเลือกภาคเรียนและปีการศึกษาอีกครั้ง');
             return false;
         }
-        
+
         // ตรวจสอบข้อมูลที่จำเป็น
         const actName = $('#act_name').val();
         const actHour = $('#act_hour').val();
@@ -772,7 +783,7 @@ $(document).ready(function() {
         const actTypeId = $('#act_type_id').val();
         const majId = $('#maj_id').val();
 
-        if (!actName || !actHour || !actStartDate || !actStopDate || 
+        if (!actName || !actHour || !actStartDate || !actStopDate ||
             !actSemester || !actStatus || !actYear || !actTypeId || !majId) {
             e.preventDefault();
             alert('กรุณากรอกข้อมูลในช่องที่มีเครื่องหมาย * ให้ครบถ้วน');
@@ -791,53 +802,53 @@ $(document).ready(function() {
 
         return true;
     });
-    
+
     // ===== การจัดการฟอร์มแก้ไขกิจกรรม =====
-    
+
     // ตรวจสอบว่ามีฟอร์มแก้ไขเปิดอยู่หรือไม่
     if ($('#editActivityModal').length > 0 && $('#editActivityModal').is(':visible')) {
         console.log("Edit form is visible on page load");
-        
+
         // รวมค่าเมื่อโหลดหน้า
         combineEditTermAndYearBeforeSubmit();
     }
-    
+
     // เมื่อเปิดโมดัลแก้ไข
     $('#editActivityModal').on('shown.bs.modal', function() {
         console.log("Edit modal shown");
-        
+
         // รวมค่าภาคเรียนและปีการศึกษา
         combineEditTermAndYearBeforeSubmit();
     });
-    
+
     // รวมค่าเมื่อมีการเปลี่ยนแปลงในฟอร์มแก้ไข
     $('#edit_act_term, #edit_act_year_number').on('change', function() {
         console.log("Edit form - " + $(this).attr('id') + " changed to " + $(this).val());
         combineEditTermAndYearBeforeSubmit();
     });
-    
+
     // ตรวจสอบฟอร์มแก้ไขกิจกรรมก่อนส่ง
     $('#editActivityForm').on('submit', function(e) {
         console.log("Edit form submitted");
-        
+
         // รวมค่าภาคเรียนและปีการศึกษาอีกครั้ง
         if (!combineEditTermAndYearBeforeSubmit()) {
             e.preventDefault();
             alert('กรุณาเลือกภาคเรียนและปีการศึกษาให้ครบถ้วน');
             return false;
         }
-        
+
         // ตรวจสอบค่า Semester
         const actSemester = $('#edit_act_semester').val();
         console.log("Edit form - Submitting with semester value: " + actSemester);
-        
+
         if (!actSemester) {
             console.error("Edit form - Semester value is empty!");
             e.preventDefault();
             alert('ค่าภาคเรียน/ปีการศึกษารวมกันว่างเปล่า กรุณาเลือกภาคเรียนและปีการศึกษาอีกครั้ง');
             return false;
         }
-        
+
         // ตรวจสอบข้อมูลที่จำเป็น
         const actName = $('#edit_act_name').val();
         const actHour = $('#edit_act_hour').val();
@@ -848,7 +859,7 @@ $(document).ready(function() {
         const actTypeId = $('#edit_act_type_id').val();
         const majId = $('#edit_maj_id').val();
 
-        if (!actName || !actHour || !actStartDate || !actStopDate || 
+        if (!actName || !actHour || !actStartDate || !actStopDate ||
             !actSemester || !actStatus || !actYear || !actTypeId || !majId) {
             e.preventDefault();
             alert('กรุณากรอกข้อมูลให้ครบถ้วน');

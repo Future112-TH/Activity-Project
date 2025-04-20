@@ -27,5 +27,7 @@
             "responsive": true, "lengthChange": false, "autoWidth": false,
             "buttons": ["copy", "excel", "colvis"]
         }).buttons().container().appendTo('#table1_wrapper .col-md-6:eq(0)');
+        
+        $('#table1_wrapper').css('margin-bottom', '40px');
     });
 </script>

@@ -14,6 +14,27 @@ require_once 'includes/header.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <!-- เพิ่ม style สำหรับ sticky footer -->
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .content-wrapper {
+            flex: 1 0 auto;
+        }
+        
+        .main-footer {
+            flex-shrink: 0;
+        }
+    </style>
 </head>
 
 <body>

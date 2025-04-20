@@ -20,8 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $major_id = $_POST['major'];
     $user_role = $_POST['user_role'];
     
-    // เพิ่มเติมสำหรับอาจารย์
-    $status = isset($_POST['status']) ? $_POST['status'] : '';
+    // รับค่าข้อมูลใหม่ที่เพิ่มเข้ามา
+    $birthdate = isset($_POST['birthdate']) ? $_POST['birthdate'] : null;
+    $religion = isset($_POST['religion']) ? $_POST['religion'] : null;
+    $nationality = isset($_POST['nationality']) ? $_POST['nationality'] : 'ไทย';
     
     // ตรวจสอบข้อมูลที่จำเป็น
     if (empty($user_id) || empty($title) || empty($firstname) || empty($lastname) || 
@@ -31,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         exit();
     }
     
-    // บันทึกข้อมูลลงฐานข้อมูล (ถ้ามีการเชื่อมต่อกับฐานข้อมูลจริง)
+    // บันทึกข้อมูลลงฐานข้อมูล
     $result = false;
     
     if ($user_role == 'student') {
@@ -46,9 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $lastname,
                 $phone,
                 $email,
-                isset($student['Birthdate']) ? $student['Birthdate'] : null,
-                isset($student['Religion']) ? $student['Religion'] : null,
-                isset($student['Nationality']) ? $student['Nationality'] : 'ไทย',
+                $birthdate, // เพิ่มการส่งค่าวันเกิด
+                $religion,  // เพิ่มการส่งค่าศาสนา
+                $nationality, // เพิ่มการส่งค่าสัญชาติ
                 isset($student['Plan_id']) ? $student['Plan_id'] : $_SESSION['plan_id'],
                 $title,  // เราต้องแปลงเป็น title_id ถ้าในฐานข้อมูลเก็บเป็น ID
                 isset($student['Prof_id']) ? $student['Prof_id'] : null,
@@ -60,6 +62,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['fullname'] = $title . ' ' . $firstname . ' ' . $lastname;
             $_SESSION['phone'] = $phone;
             $_SESSION['email'] = $email;
+            
+            // บันทึกข้อมูลเพิ่มเติมใน session
+            $_SESSION['birthdate'] = $birthdate;
+            $_SESSION['religion'] = $religion;
+            $_SESSION['nationality'] = $nationality;
             
             $result = true; // สมมติว่าบันทึกสำเร็จ
         }

@@ -186,6 +186,16 @@ if (!empty($result['Stu_id'])) {
         margin-top: 30px;
         color: #6c757d;
     }
+
+    .activity-title {
+        white-space: nowrap !important;
+        text-align: center !important;
+        width: 100% !important;
+        overflow: visible !important;
+        font-size: 1.5rem !important;
+        font-weight: 500 !important;
+        margin-bottom: 1rem !important;
+    }
     </style>
 </head>
 
@@ -263,8 +273,8 @@ if (!empty($result['Stu_id'])) {
             <div class="text-center">
                 <img class="logo-img" src="img/logo.png" alt="มหาวิทยาลัยธนบุรี">
             </div>
-            <h1 class="h3 mb-3 fw-normal text-center">ระบบบันทึกการเข้าร่วมกิจกรรม</h1>
-
+            <h1 class="activity-title">ระบบบันทึกการเข้าร่วมกิจกรรม</h1>
+            <h1 class="activity-title">มหาวิทยาลัยธนบุรี</h1>
             <div class="form-floating">
                 <input type="text" class="form-control" id="floatingInput" name="username"
                     value="<?php if($_SERVER['REQUEST_METHOD']=='POST') echo $_POST['username']; ?>"
@@ -276,14 +286,7 @@ if (!empty($result['Stu_id'])) {
                 <label for="floatingPassword">รหัสผ่าน</label>
             </div>
 
-            <div class="form-check text-start my-3">
-                <input class="form-check-input" type="checkbox" value="remember-me" id="flexCheckDefault"
-                    name="rememberMe">
-                <label class="form-check-label" for="flexCheckDefault">
-                    จดจำรหัสผ่าน
-                </label>
-            </div>
-            <button class="btn btn-primary w-100 py-2" type="submit">เข้าสู่ระบบ</button>
+            <button class="btn btn-primary w-100 py-2 mt-3" type="submit">เข้าสู่ระบบ</button>
         </form>
     </main>
 

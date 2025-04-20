@@ -264,7 +264,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                         <option value="">เลือกหลักสูตร</option>
                                         <?php if($curriculums && $curriculums->rowCount() > 0): ?>
                                         <?php while($curriculum = $curriculums->fetch(PDO::FETCH_ASSOC)): ?>
-                                        <option value="<?php echo $curriculum['Curri_id']; ?>" data-major="<?php echo $curriculum['Maj_id']; ?>">
+                                        <option value="<?php echo $curriculum['Curri_id']; ?>"
+                                            data-major="<?php echo $curriculum['Maj_id']; ?>">
                                             <?php echo $curriculum['Curri_t']; ?></option>
                                         <?php endwhile; ?>
                                         <?php endif; ?>
@@ -308,7 +309,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                         <option value="">เลือกอาจารย์ที่ปรึกษา</option>
                                         <?php if($professors && $professors->rowCount() > 0): ?>
                                         <?php while($prof = $professors->fetch(PDO::FETCH_ASSOC)): ?>
-                                        <option value="<?php echo $prof['Prof_id']; ?>" data-major="<?php echo $prof['Major_id']; ?>">
+                                        <option value="<?php echo $prof['Prof_id']; ?>"
+                                            data-major="<?php echo $prof['Major_id']; ?>">
                                             <?php echo $prof['Title_name'] . ' ' . $prof['Prof_fname'] . ' ' . $prof['Prof_lname']; ?>
                                         </option>
                                         <?php endwhile; ?>
@@ -445,7 +447,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="edit_curriculum_id">หลักสูตร <span class="text-danger">*</span></label>
-                                    <select name="edit_curriculum_id" id="edit_curriculum_id" class="form-control" required>
+                                    <select name="edit_curriculum_id" id="edit_curriculum_id" class="form-control"
+                                        required>
                                         <option value="">เลือกหลักสูตร</option>
                                         <?php 
                                             // รีเซ็ต pointer
@@ -456,7 +459,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                 while($curriculum = $curriculums->fetch(PDO::FETCH_ASSOC)):
                                                     $selected = ($editStudent['Curri_id'] == $curriculum['Curri_id']) ? 'selected' : '';
                                         ?>
-                                        <option value="<?php echo $curriculum['Curri_id']; ?>" <?php echo $selected; ?> data-major="<?php echo $curriculum['Maj_id']; ?>">
+                                        <option value="<?php echo $curriculum['Curri_id']; ?>" <?php echo $selected; ?>
+                                            data-major="<?php echo $curriculum['Maj_id']; ?>">
                                             <?php echo $curriculum['Curri_t']; ?></option>
                                         <?php 
                                                 endwhile; 
@@ -515,7 +519,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="edit_prof_id">อาจารย์ที่ปรึกษา <span class="text-danger">*</span></label>
+                                    <label for="edit_prof_id">อาจารย์ที่ปรึกษา <span
+                                            class="text-danger">*</span></label>
                                     <select name="edit_prof_id" id="edit_prof_id" class="form-control" required>
                                         <option value="">เลือกอาจารย์ที่ปรึกษา</option>
                                         <?php 
@@ -527,7 +532,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                 while($prof = $professors->fetch(PDO::FETCH_ASSOC)): 
                                                     $selected = ($editStudent['Prof_id'] == $prof['Prof_id']) ? 'selected' : '';
                                         ?>
-                                        <option value="<?php echo $prof['Prof_id']; ?>" <?php echo $selected; ?> data-major="<?php echo $prof['Major_id']; ?>">
+                                        <option value="<?php echo $prof['Prof_id']; ?>" <?php echo $selected; ?>
+                                            data-major="<?php echo $prof['Major_id']; ?>">
                                             <?php echo $prof['Title_name'] . ' ' . $prof['Prof_fname'] . ' ' . $prof['Prof_lname']; ?>
                                         </option>
                                         <?php 
@@ -554,7 +560,6 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
     <div class="modal-backdrop fade show"></div>
     <?php endif; ?>
 
-    <!-- Modal: นำเข้าข้อมูลนักศึกษา -->
     <div class="modal fade" id="importStudentModal" tabindex="-1" aria-labelledby="importStudentLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -571,22 +576,81 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                         </button>
                     </div>
                     <div class="modal-body">
-                        <div class="form-group">
-                            <label for="import_file">เลือกไฟล์ Excel (.xlsx, .xls) <span
-                                    class="text-danger">*</span></label>
-                            <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="import_file" name="import_file"
-                                    accept=".xlsx, .xls" required>
-                                <label class="custom-file-label" for="import_file">เลือกไฟล์...</label>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="import_file">เลือกไฟล์ Excel (.xlsx, .xls) <span
+                                            class="text-danger">*</span></label>
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input" id="import_file" name="import_file"
+                                            accept=".xlsx, .xls" required>
+                                        <label class="custom-file-label" for="import_file">เลือกไฟล์...</label>
+                                    </div>
+                                    <small class="form-text text-muted">รองรับไฟล์นามสกุล .xlsx, .xls เท่านั้น</small>
+                                </div>
                             </div>
-                            <small class="form-text text-muted">รองรับไฟล์นามสกุล .xlsx, .xls เท่านั้น</small>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="import_mode">โหมดการนำเข้า <span class="text-danger">*</span></label>
+                                    <select name="import_mode" id="import_mode" class="form-control" required>
+                                        <option value="both" selected>เพิ่มข้อมูลใหม่และอัปเดตข้อมูลเดิม</option>
+                                        <option value="add">เพิ่มข้อมูลใหม่เท่านั้น</option>
+                                        <option value="update">อัปเดตข้อมูลเดิมเท่านั้น</option>
+                                    </select>
+                                    <small
+                                        class="form-text text-muted">เลือกวิธีการจัดการกับข้อมูลนักศึกษาที่มีอยู่แล้ว</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card card-outline card-primary mb-3">
+                            <div class="card-header">
+                                <h3 class="card-title">คำแนะนำการนำเข้าข้อมูล</h3>
+                                <div class="card-tools">
+                                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>คอลัมน์ที่จำเป็น:</strong></p>
+                                <ol>
+                                    <li><strong>รหัสนักศึกษา</strong> - ต้องมี 13 หลัก</li>
+                                    <li><strong>คำนำหน้า</strong> - ต้องตรงกับข้อมูลในระบบ เช่น นาย, นางสาว</li>
+                                    <li><strong>ชื่อ</strong></li>
+                                    <li><strong>นามสกุล</strong></li>
+                                    <li><strong>เบอร์โทรศัพท์</strong> - ต้องเป็นตัวเลข 10 หลัก</li>
+                                    <li><strong>สาขาวิชา</strong> - ต้องตรงกับชื่อสาขาในระบบ</li>
+                                    <li><strong>แผนการเรียน</strong> - ต้องตรงกับชื่อแผนการเรียนหรือชื่อย่อในระบบ</li>
+                                    <li><strong>อาจารย์ที่ปรึกษา</strong> - ระบุเป็นรหัสอาจารย์ หรือชื่อ-นามสกุลอาจารย์
+                                    </li>
+                                </ol>
+                                <p><strong>คอลัมน์ที่เพิ่มเติมได้ (ไม่บังคับ):</strong></p>
+                                <ul>
+                                    <li><strong>อีเมล</strong></li>
+                                    <li><strong>วันเกิด</strong> - รูปแบบ yyyy-mm-dd หรือ dd/mm/yyyy</li>
+                                    <li><strong>ศาสนา</strong></li>
+                                    <li><strong>สัญชาติ</strong> - ค่าเริ่มต้นคือ "ไทย"</li>
+                                    <li><strong>หลักสูตร</strong> - ต้องตรงกับชื่อหลักสูตรในระบบ</li>
+                                    <li><strong>สถานะ</strong> - 1=ลาออก, 2=ปกติ, 3=จบการศึกษา, 4=พ้นสภาพ</li>
+                                </ul>
+                                <p class="text-info"><i class="fas fa-info-circle"></i> <strong>หมายเหตุ:</strong>
+                                    แถวแรกของไฟล์ Excel ต้องเป็นชื่อคอลัมน์ที่ตรงกับรายการข้างต้น</p>
+                            </div>
                         </div>
 
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            โปรดตรวจสอบให้แน่ใจว่าไฟล์ Excel ที่อัปโหลดมีรูปแบบตามที่กำหนด คุณสามารถดาวน์โหลด
-                            <a href="templates/student_template.xlsx" class="alert-link">ไฟล์ตัวอย่าง</a>
-                            เพื่อดูรูปแบบที่ถูกต้อง
+                            <div class="d-flex">
+                                <div class="mr-2">
+                                    <i class="fas fa-info-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading">ต้องการไฟล์แม่แบบ?</h5>
+                                    <p>คุณสามารถดาวน์โหลด <a href="templates/student_template.xlsx"
+                                            class="alert-link">ไฟล์ตัวอย่าง</a> เพื่อดูรูปแบบที่ถูกต้อง
+                                        หรือใช้เป็นแม่แบบสำหรับการนำเข้าข้อมูล</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -601,7 +665,47 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
             </form>
         </div>
     </div>
-    
+
+    <!-- Modal: แสดงรายละเอียดข้อผิดพลาดการนำเข้า -->
+    <div class="modal fade" id="importErrorModal" tabindex="-1" aria-labelledby="importErrorLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-danger">
+                    <h5 class="modal-title text-white">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> รายละเอียดข้อผิดพลาดการนำเข้า
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle mr-1"></i> พบข้อผิดพลาดในการนำเข้าข้อมูล
+                        กรุณาตรวจสอบและแก้ไขข้อมูลในไฟล์ Excel ของคุณ
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th width="10%">ลำดับ</th>
+                                    <th width="90%">ข้อความผิดพลาด</th>
+                                </tr>
+                            </thead>
+                            <tbody id="error-details-body">
+                                <!-- ข้อมูลจะถูกเพิ่มโดย JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i> ปิด
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: ดูข้อมูลนักศึกษา -->
     <?php if($viewStudent): ?>
     <div class="modal fade show" id="viewStudentModal" tabindex="-1" aria-labelledby="viewStudentLabel"
@@ -943,7 +1047,7 @@ $(document).ready(function() {
         const curriculumId = $(this).val();
         const selectedOption = $(this).find('option:selected');
         const majorId = selectedOption.data('major');
-        
+
         if (majorId) {
             // ตั้งค่าสาขาอัตโนมัติตามหลักสูตรที่เลือก
             $('#major_id').val(majorId).trigger('change');
@@ -955,7 +1059,7 @@ $(document).ready(function() {
         const curriculumId = $(this).val();
         const selectedOption = $(this).find('option:selected');
         const majorId = selectedOption.data('major');
-        
+
         if (majorId) {
             // ตั้งค่าสาขาอัตโนมัติตามหลักสูตรที่เลือก
             $('#edit_major_id').val(majorId).trigger('change');
@@ -965,7 +1069,7 @@ $(document).ready(function() {
     // เมื่อเลือกสาขา ให้กรองอาจารย์ตามสาขา
     $('#major_id').on('change', function() {
         const majorId = $(this).val();
-        
+
         if (majorId) {
             // กรองอาจารย์ตามสาขา
             $('#prof_id option').each(function() {
@@ -976,12 +1080,12 @@ $(document).ready(function() {
                     $(this).show();
                 }
             });
-            
+
             // ล้างการเลือกอาจารย์ ถ้าไม่อยู่ในสาขาที่เลือก
             const currentProf = $('#prof_id').val();
             const currentProfOption = $('#prof_id option[value="' + currentProf + '"]');
             const currentProfMajor = currentProfOption.data('major');
-            
+
             if (currentProfMajor && currentProfMajor != majorId) {
                 $('#prof_id').val('');
             }
@@ -994,7 +1098,7 @@ $(document).ready(function() {
     // เมื่อเลือกสาขาในฟอร์มแก้ไข
     $('#edit_major_id').on('change', function() {
         const majorId = $(this).val();
-        
+
         if (majorId) {
             // กรองอาจารย์ตามสาขา
             $('#edit_prof_id option').each(function() {
@@ -1005,12 +1109,12 @@ $(document).ready(function() {
                     $(this).show();
                 }
             });
-            
+
             // ล้างการเลือกอาจารย์ ถ้าไม่อยู่ในสาขาที่เลือก
             const currentProf = $('#edit_prof_id').val();
             const currentProfOption = $('#edit_prof_id option[value="' + currentProf + '"]');
             const currentProfMajor = currentProfOption.data('major');
-            
+
             if (currentProfMajor && currentProfMajor != majorId) {
                 $('#edit_prof_id').val('');
             }
@@ -1031,6 +1135,81 @@ function confirmDelete(id) {
     if (confirm('คุณต้องการลบนักศึกษารหัส ' + id + ' ใช่หรือไม่?')) {
         document.getElementById('deleteForm' + id).submit();
     }
+}
+
+// แสดงชื่อไฟล์ที่เลือกในช่องอัปโหลด
+$('#import_file').on('change', function() {
+    const fileName = $(this).val().split('\\').pop();
+    const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+
+    if (fileName) {
+        if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+            $(this).next('.custom-file-label').html(fileName);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'ไฟล์ไม่ถูกต้อง',
+                text: 'โปรดเลือกไฟล์ Excel (.xlsx, .xls) เท่านั้น',
+                confirmButtonText: 'เข้าใจแล้ว'
+            });
+            $(this).val('').next('.custom-file-label').html('เลือกไฟล์...');
+        }
+    }
+});
+
+// เพิ่มการตรวจสอบก่อนส่งฟอร์ม
+$('#importStudentForm').on('submit', function(e) {
+    const fileInput = $('#import_file');
+    
+    if (fileInput.val() === '') {
+        e.preventDefault();
+        Swal.fire({
+            icon: 'warning',
+            title: 'กรุณาเลือกไฟล์',
+            text: 'โปรดเลือกไฟล์ Excel สำหรับนำเข้าข้อมูล',
+            confirmButtonText: 'เข้าใจแล้ว'
+        });
+        return false;
+    }
+    
+    // แสดง loading ระหว่างอัปโหลด
+    Swal.fire({
+        title: 'กำลังนำเข้าข้อมูล...',
+        html: 'โปรดรอสักครู่',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    return true;
+});
+
+// แสดงข้อความผิดพลาดการนำเข้า (ถ้ามี)
+$(document).ready(function() {
+    <?php if(isset($_SESSION['error_details']) && !empty($_SESSION['error_details'])): ?>
+    
+    // สร้างตารางแสดงข้อผิดพลาด
+    let errorHtml = '';
+    const errorDetails = <?php echo json_encode($_SESSION['error_details']); ?>;
+    
+    errorDetails.forEach((error, index) => {
+        errorHtml += `<tr>
+            <td class="text-center">${index + 1}</td>
+            <td>${error}</td>
+        </tr>`;
+    });
+    
+    $('#error-details-body').html(errorHtml);
+    $('#importErrorModal').modal('show');
+    
+    <?php unset($_SESSION['error_details']); ?>
+    <?php endif; ?>
+});
+
+// เพิ่มฟังก์ชันสำหรับดาวน์โหลดเทมเพลต
+function downloadTemplateFile() {
+    window.location.href = 'templates/student_template.xlsx';
 }
 </script>
 

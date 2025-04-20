@@ -44,6 +44,9 @@ if ($user_role == 'student') {
             'Title_name' => $title,
             'Stu_phone' => '', // เราไม่มีข้อมูลนี้ใน session
             'Stu_email' => '', // เราไม่มีข้อมูลนี้ใน session
+            'Birthdate' => '', // เพิ่มวันเกิด
+            'Religion' => '', // เพิ่มศาสนา
+            'Nationality' => '', // เพิ่มสัญชาติ
             'Maj_id' => $_SESSION['major_id'],
             'Maj_name' => $_SESSION['major_name'],
             'Fac_name' => $_SESSION['faculty_name'],
@@ -196,37 +199,55 @@ if ($user_role == 'student') {
                                 </div>
                             </div>
 
+                            <!-- เพิ่มส่วนวันเกิด -->
                             <div class="row">
-                                <!-- สาขา -->
+                                <!-- วันเกิด -->
                                 <div class="col-sm-3">
                                     <label class="form-control text-right font-weight-bold"
-                                        style="border: none; border-color: transparent">สาขา</label>
+                                        style="border: none; border-color: transparent">วันเกิด</label>
                                 </div>
                                 <div class="col-sm-3">
                                     <input type="text" class="form-control"
-                                        value="<?php echo isset($user_data['Maj_name']) ? $user_data['Maj_name'] : ''; ?>"
+                                        value="<?php echo ($user_role == 'student' && isset($user_data['Birthdate']) && $user_data['Birthdate']) ? date('d/m/Y', strtotime($user_data['Birthdate'])) : ''; ?>"
                                         style="border: none; border-color: transparent; border-bottom: #999999 1px dotted;"
                                         readonly />
                                 </div>
-                                <!-- สถานะ -->
+
+                                <!-- ศาสนา -->
                                 <div class="col-sm-2">
                                     <label class="form-control text-right font-weight-bold"
-                                        style="border: none; border-color: transparent">สถานะ</label>
+                                        style="border: none; border-color: transparent">ศาสนา</label>
                                 </div>
                                 <div class="col-sm-4">
-                                    <input type="text" class="form-control" value="<?php 
-                                            if ($user_role == 'admin') {
-                                                echo 'ผู้ดูแลระบบ';
-                                            } elseif ($user_role == 'teacher') {
-                                                echo 'อาจารย์';
-                                            } elseif ($user_role == 'advisor') {
-                                                echo 'อาจารย์ที่ปรึกษา';
-                                            } elseif ($user_role == 'student') {
-                                                echo 'นักศึกษา';
-                                            } else {
-                                                echo $user_role;
-                                            }
-                                        ?>"
+                                    <input type="text" class="form-control"
+                                        value="<?php echo ($user_role == 'student' && isset($user_data['Religion'])) ? $user_data['Religion'] : ''; ?>"
+                                        style="border: none; border-color: transparent; border-bottom: #999999 1px dotted;"
+                                        readonly />
+                                </div>
+                            </div>
+
+                            <!-- เพิ่มส่วนสัญชาติ -->
+                            <div class="row">
+                                <!-- สัญชาติ -->
+                                <div class="col-sm-3">
+                                    <label class="form-control text-right font-weight-bold"
+                                        style="border: none; border-color: transparent">สัญชาติ</label>
+                                </div>
+                                <div class="col-sm-3">
+                                    <input type="text" class="form-control"
+                                        value="<?php echo ($user_role == 'student' && isset($user_data['Nationality'])) ? $user_data['Nationality'] : ''; ?>"
+                                        style="border: none; border-color: transparent; border-bottom: #999999 1px dotted;"
+                                        readonly />
+                                </div>
+
+                                <!-- สาขา -->
+                                <div class="col-sm-2">
+                                    <label class="form-control text-right font-weight-bold"
+                                        style="border: none; border-color: transparent">สาขา</label>
+                                </div>
+                                <div class="col-sm-4">
+                                    <input type="text" class="form-control"
+                                        value="<?php echo isset($user_data['Maj_name']) ? $user_data['Maj_name'] : ''; ?>"
                                         style="border: none; border-color: transparent; border-bottom: #999999 1px dotted;"
                                         readonly />
                                 </div>
@@ -375,7 +396,47 @@ if ($user_role == 'student') {
                         </div>
                     </div>
 
-                    <!-- แสดงสาขาและสถานะเฉพาะแบบอ่านอย่างเดียว -->
+                    <!-- เพิ่มฟิลด์วันเกิด, ศาสนา, สัญชาติ -->
+                    <?php if($user_role == 'student'): ?>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="birthdate">วันเกิด</label>
+                                <input type="date" class="form-control" id="birthdate" name="birthdate"
+                                    value="<?php echo isset($user_data['Birthdate']) ? $user_data['Birthdate'] : ''; ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="religion">ศาสนา</label>
+                                <input type="text" class="form-control" id="religion" name="religion"
+                                    value="<?php echo isset($user_data['Religion']) ? $user_data['Religion'] : ''; ?>"
+                                    placeholder="กรุณากรอกศาสนา">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="nationality">สัญชาติ</label>
+                                <input type="text" class="form-control" id="nationality" name="nationality"
+                                    value="<?php echo isset($user_data['Nationality']) ? $user_data['Nationality'] : 'ไทย'; ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>สาขา</label>
+                                <input type="text" class="form-control bg-light"
+                                    value="<?php echo isset($user_data['Maj_name']) ? $user_data['Maj_name'] : $_SESSION['major_name']; ?>"
+                                    readonly>
+                                <input type="hidden" name="major"
+                                    value="<?php echo isset($user_data['Maj_id']) ? $user_data['Maj_id'] : $_SESSION['major_id']; ?>">
+                            </div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <!-- แสดงสาขาเฉพาะแบบอ่านอย่างเดียว สำหรับอาจารย์ -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -387,26 +448,9 @@ if ($user_role == 'student') {
                                     value="<?php echo isset($user_data['Maj_id']) ? $user_data['Maj_id'] : $_SESSION['major_id']; ?>">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>สถานะ</label>
-                                <input type="text" class="form-control bg-light" value="<?php 
-                                        if ($user_role == 'admin') {
-                                            echo 'ผู้ดูแลระบบ';
-                                        } elseif ($user_role == 'teacher') {
-                                            echo 'อาจารย์';
-                                        } elseif ($user_role == 'advisor') {
-                                            echo 'อาจารย์ที่ปรึกษา';
-                                        } elseif ($user_role == 'student') {
-                                            echo 'นักศึกษา';
-                                        } else {
-                                            echo $user_role;
-                                        }
-                                    ?>" readonly>
-                                <input type="hidden" name="status" value="<?php echo $user_role; ?>">
-                            </div>
-                        </div>
                     </div>
+                    <?php endif; ?>
+
                     <?php else: ?>
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle mr-2"></i> ไม่พบข้อมูลผู้ใช้
@@ -422,7 +466,7 @@ if ($user_role == 'student') {
                     </button>
                 </div>
             </div>
-        </form>
+        </form>>
     </div>
 </div>
 
