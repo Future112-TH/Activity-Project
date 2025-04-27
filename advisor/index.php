@@ -96,7 +96,7 @@ require_once '../config/controller.php';
         <!-- Content Wrapper. Contains page content -->
         <?php 
         switch($menu){
-            case 1: require_once 'dashboard.php'; break;
+            // case 1: require_once 'dashboard.php'; break;
             
             case 2: require_once 'profile.php'; break;
             

@@ -118,13 +118,17 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                     <td><?php echo $row['Maj_name']; ?></td>
                                     <td>
                                         <?php 
-                                        // ดึงข้อมูลหลักสูตรตาม Curri_id
                                         $curriculumInfo = $controller->getCurriculumById($row['Curri_id']);
                                         echo $curriculumInfo ? $curriculumInfo['Curri_t'] : '-';
                                         ?>
                                     </td>
                                     <td>
-                                        <span class="badge badge-primary"><?php echo $row['Plan_name']; ?></span>
+                                        <span class="badge badge-primary">
+                                            <?php 
+                                                echo $row['Abbre'] ?: 'ไม่ระบุ'; 
+                                                echo "<!-- Plan_id: " . $row['Plan_id'] . " -->";
+                                            ?>
+                                        </span>
                                     </td>
                                     <td><?php echo $row['Prof_fname'] . ' ' . $row['Prof_lname']; ?></td>
                                     <td class="text-center">
@@ -280,7 +284,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                         <?php if($plans && $plans->rowCount() > 0): ?>
                                         <?php while($plan = $plans->fetch(PDO::FETCH_ASSOC)): ?>
                                         <option value="<?php echo $plan['Plan_id']; ?>">
-                                            <?php echo $plan['Plan_name'] . ' (' . $plan['Abbre'] . ')'; ?></option>
+                                            <?php echo $plan['Abbre']; ?>
+                                        </option>
                                         <?php endwhile; ?>
                                         <?php endif; ?>
                                     </select>
@@ -483,7 +488,8 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                     $selected = ($editStudent['Plan_id'] == $plan['Plan_id']) ? 'selected' : '';
                                         ?>
                                         <option value="<?php echo $plan['Plan_id']; ?>" <?php echo $selected; ?>>
-                                            <?php echo $plan['Plan_name'] . ' (' . $plan['Abbre'] . ')'; ?></option>
+                                            <?php echo $plan['Abbre']; ?>
+                                        </option>
                                         <?php 
                                                 endwhile; 
                                             endif; 
@@ -750,6 +756,26 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                     <td><?php echo !empty($viewStudent['Birthdate']) ? date('d/m/Y', strtotime($viewStudent['Birthdate'])) : '-'; ?>
                                                     </td>
                                                 </tr>
+                                                <tr>
+                                                    <td class="font-weight-bold">อาจารย์ที่ปรึกษา:</td>
+                                                    <td>
+                                                        <?php 
+                                                            // ดึงข้อมูลอาจารย์ที่ปรึกษาเพิ่มเติมถ้ายังไม่มีในอาร์เรย์ $viewStudent
+                                                            if (!isset($viewStudent['Prof_title']) && isset($viewStudent['Prof_id'])) {
+                                                                $advisorInfo = $controller->getProfessorById($viewStudent['Prof_id']);
+                                                                if ($advisorInfo) {
+                                                                    echo $advisorInfo['Title_name'] . ' ' . $advisorInfo['Prof_fname'] . ' ' . $advisorInfo['Prof_lname'];
+                                                                } else {
+                                                                    echo '-';
+                                                                }
+                                                            } else {
+                                                                echo (isset($viewStudent['Prof_title']) ? $viewStudent['Prof_title'] : '') . ' ' . 
+                                                                    (isset($viewStudent['Prof_fname']) ? $viewStudent['Prof_fname'] : '') . ' ' . 
+                                                                    (isset($viewStudent['Prof_lname']) ? $viewStudent['Prof_lname'] : '');
+                                                            }
+                                                        ?>
+                                                    </td>
+                                                </tr>
                                             </table>
                                         </div>
                                         <div class="col-md-6">
@@ -776,29 +802,12 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                     </td>
                                                 </tr>
                                                 <tr>
-                                                    <td class="font-weight-bold">แผนการเรียน/สาขา:</td>
-                                                    <td><?php echo $viewStudent['Plan_name'] . ' / ' . $viewStudent['Maj_name']; ?>
-                                                    </td>
+                                                    <td class="font-weight-bold">แผนการเรียน:</td>
+                                                    <td><?php echo $viewStudent['Abbre']; ?></td>
                                                 </tr>
                                                 <tr>
-                                                    <td class="font-weight-bold">อาจารย์ที่ปรึกษา:</td>
-                                                    <td>
-                                                        <?php 
-                                                            // ดึงข้อมูลอาจารย์ที่ปรึกษาเพิ่มเติมถ้ายังไม่มีในอาร์เรย์ $viewStudent
-                                                            if (!isset($viewStudent['Prof_title']) && isset($viewStudent['Prof_id'])) {
-                                                                $advisorInfo = $controller->getProfessorById($viewStudent['Prof_id']);
-                                                                if ($advisorInfo) {
-                                                                    echo $advisorInfo['Title_name'] . ' ' . $advisorInfo['Prof_fname'] . ' ' . $advisorInfo['Prof_lname'];
-                                                                } else {
-                                                                    echo '-';
-                                                                }
-                                                            } else {
-                                                                echo (isset($viewStudent['Prof_title']) ? $viewStudent['Prof_title'] : '') . ' ' . 
-                                                                    (isset($viewStudent['Prof_fname']) ? $viewStudent['Prof_fname'] : '') . ' ' . 
-                                                                    (isset($viewStudent['Prof_lname']) ? $viewStudent['Prof_lname'] : '');
-                                                            }
-                                                        ?>
-                                                    </td>
+                                                    <td class="font-weight-bold">สาขาวิชา:</td>
+                                                    <td><?php echo $viewStudent['Maj_name']; ?></td>
                                                 </tr>
                                             </table>
                                         </div>

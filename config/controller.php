@@ -507,9 +507,8 @@ class Controller {
     }
 
     // ---- STUDENT METHODS ----
-
     function getStudents() {
-        $sql = "SELECT s.*, t.Title_name, m.Maj_name, p.Plan_name, 
+        $sql = "SELECT s.*, t.Title_name, m.Maj_name, p.Plan_name, p.Abbre, p.Plan_id,
                 pr.Prof_fname, pr.Prof_lname, pt.Title_name as Prof_title
                 FROM student s
                 LEFT JOIN title t ON s.Title_id = t.Title_id
@@ -522,7 +521,7 @@ class Controller {
     }
 
     function getStudentById($stu_id){
-        $sql = "SELECT s.*, t.Title_name, m.Maj_name, f.Fac_name, sp.Plan_name  
+        $sql = "SELECT s.*, t.Title_name, m.Maj_name, f.Fac_name, sp.Plan_name, sp.Abbre  
                 FROM student s
                 LEFT JOIN title t ON s.Title_id = t.Title_id
                 LEFT JOIN major m ON s.Maj_id = m.Maj_id
@@ -554,7 +553,7 @@ class Controller {
     }
 
     // เพิ่มข้อมูลนักศึกษา
-    function insertStudent($stuId, $stuFname, $stuLname, $stuPhone = null, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = '2') {
+    function insertStudent($stuId, $stuFname, $stuLname, $stuPhone = null, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = '2', $pdpa = 'ไม่ยินยอม') {
         try {
             // ตรวจสอบว่ามีนักศึกษานี้ในระบบแล้วหรือไม่
             if ($this->recordExists('student', 'Stu_id', $stuId)) {
@@ -568,23 +567,33 @@ class Controller {
             $stuEmail = $stuEmail ? trim($stuEmail) : null;
             
             // ตรวจสอบว่ามี Curri_id หรือไม่ (จำเป็นตามโครงสร้างฐานข้อมูล)
+            $this->logError("Incoming curriId value", $curriId);
+    
+            // ตรวจสอบว่ามี Curri_id หรือไม่
             if (!$curriId) {
-                // ถ้าไม่มี ให้ดึงหลักสูตรแรกของสาขามาใช้
-                $sql = "SELECT Curri_id FROM curriculum WHERE Maj_id = :maj_id LIMIT 1";
-                $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
+                // ถ้าไม่มี ให้ดึงข้อมูลเดิมมา
+                $sql = "SELECT Curri_id, is_status FROM student WHERE Stu_id = :stu_id";
+                $stmt = $this->executeQuery($sql, [':stu_id' => $stuId]);
                 if ($stmt && $stmt->rowCount() > 0) {
                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $curriId = $result['Curri_id'];
-                } else {
-                    // ถ้ายังไม่มีหลักสูตรสำหรับสาขานี้ ให้ใช้หลักสูตรแรกในระบบ
-                    $sql = "SELECT Curri_id FROM curriculum LIMIT 1";
-                    $stmt = $this->executeQuery($sql);
+                    $curriId = $curriId ?: $result['Curri_id'];
+                    $is_status = $is_status ?: $result['is_status'];
+                }
+            } else {
+                // ตรวจสอบว่า curriId ที่ส่งมาอยู่ในฐานข้อมูลหรือไม่
+                $sql = "SELECT Curri_id FROM curriculum WHERE Curri_id = :curri_id";
+                $stmt = $this->executeQuery($sql, [':curri_id' => $curriId]);
+                if (!($stmt && $stmt->rowCount() > 0)) {
+                    // ถ้าไม่พบ curri_id ที่ส่งมา ให้ใช้หลักสูตรล่าสุดของสาขา
+                    $sql = "SELECT Curri_id FROM curriculum 
+                        WHERE Maj_id = :maj_id 
+                        ORDER BY Curri_start DESC LIMIT 1";
+                    $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
                     if ($stmt && $stmt->rowCount() > 0) {
                         $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $oldCurriId = $curriId;
                         $curriId = $result['Curri_id'];
-                    } else {
-                        $this->logError("No curriculum found for student insertion");
-                        return false;
+                        $this->logError("Changed curriId from $oldCurriId to", $curriId);
                     }
                 }
             }
@@ -603,7 +612,8 @@ class Controller {
                 'Prof_id' => $profId,
                 'Maj_id' => $majId,
                 'Curri_id' => $curriId,
-                'is_status' => $is_status
+                'is_status' => $is_status,
+                'pdpa' => $pdpa  // เพิ่มฟิลด์ pdpa
             ]);
         } catch(PDOException $e) {
             $this->logError("PDOException in insertStudent", $e->getMessage());
@@ -612,7 +622,7 @@ class Controller {
     }
 
     // อัปเดตข้อมูลนักศึกษา
-    function updateStudent($stuId, $stuFname, $stuLname, $stuPhone = null, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = null) {
+    function updateStudent($stuId, $stuFname, $stuLname, $stuPhone = null, $stuEmail = null, $birthdate = null, $religion = null, $nationality = 'ไทย', $planId, $titleId, $profId, $majId, $curriId = null, $is_status = null, $pdpa = null) {
         try {
             // ตรวจสอบว่ามีนักศึกษานี้ในระบบหรือไม่
             if (!$this->recordExists('student', 'Stu_id', $stuId)) {
@@ -625,46 +635,16 @@ class Controller {
             $stuPhone = $stuPhone ? trim($stuPhone) : null; // เปลี่ยนเป็น null ถ้าไม่มีข้อมูล
             $stuEmail = $stuEmail ? trim($stuEmail) : null;
             
-            // ตรวจสอบและกำหนดค่า curri_id
-            if (!empty($curriName)) {
-                // กรณีที่เป็นรหัสหลักสูตร 14 หลัก (เช่น 25500901104641)
-                if (is_numeric($curriName) && strlen(trim($curriName)) == 14) {
-                    $curriId = trim($curriName); // ใช้ค่าที่รับมาโดยตรง ไม่ต้องค้นหาในฐานข้อมูล
-                } else {
-                    // กรณีที่เป็นชื่อหลักสูตร หรือรหัสที่ไม่ใช่ 14 หลัก
-                    $sql = "SELECT Curri_id FROM curriculum 
-                           WHERE Curri_tname LIKE :curri_name 
-                           OR Curri_t LIKE :curri_name 
-                           OR Curri_ename LIKE :curri_name 
-                           OR Curri_e LIKE :curri_name";
-                    $stmt = $this->executeQuery($sql, [':curri_name' => "%$curriName%"]);
-                    if ($stmt && $stmt->rowCount() > 0) {
-                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                        $curriId = $result['Curri_id'];
-                    } else {
-                        // ถ้าไม่พบ ใช้หลักสูตรล่าสุดของสาขา
-                        $sql = "SELECT Curri_id FROM curriculum 
-                               WHERE Maj_id = :maj_id 
-                               ORDER BY Curri_start DESC LIMIT 1";
-                        $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
-                        if ($stmt && $stmt->rowCount() > 0) {
-                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                            $curriId = $result['Curri_id'];
-                            $error_details[] = "แถวที่ {$row}: ไม่พบหลักสูตร \"$curriName\" ใช้หลักสูตรล่าสุดของสาขาแทน";
-                        }
-                    }
-                }
-            }
-            
-            // ตรวจสอบว่ามี Curri_id และ is_status หรือไม่
-            if (!$curriId || !$is_status) {
+            // ตรวจสอบว่ามี Curri_id และ is_status และ pdpa หรือไม่
+            if (!$curriId || !$is_status || !$pdpa) {
                 // ถ้าไม่มี ให้ดึงข้อมูลเดิมมา
-                $sql = "SELECT Curri_id, is_status FROM student WHERE Stu_id = :stu_id";
+                $sql = "SELECT Curri_id, is_status, pdpa FROM student WHERE Stu_id = :stu_id";
                 $stmt = $this->executeQuery($sql, [':stu_id' => $stuId]);
                 if ($stmt && $stmt->rowCount() > 0) {
                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
                     $curriId = $curriId ?: $result['Curri_id'];
                     $is_status = $is_status ?: $result['is_status'];
+                    $pdpa = $pdpa ?: $result['pdpa'];
                 }
             }
             
@@ -681,7 +661,8 @@ class Controller {
                 'Prof_id' => $profId,
                 'Maj_id' => $majId,
                 'Curri_id' => $curriId,
-                'is_status' => $is_status
+                'is_status' => $is_status,
+                'pdpa' => $pdpa  // เพิ่มฟิลด์ pdpa
             ], 'Stu_id', $stuId);
         } catch(PDOException $e) {
             $this->logError("PDOException in updateStudent", $e->getMessage());
@@ -997,20 +978,63 @@ class Controller {
                     $planId = null;
                     if (!empty($planName)) {
                         if (is_numeric($planName)) {
-                            $planId = $planName;
-                        } else {
-                            // ค้นหาจากชื่อเต็มหรือชื่อย่อ
+                            // กรณีเป็นตัวเลข ตรวจสอบว่ามีใน DB จริงหรือไม่
+                            $planCheckSql = "SELECT Plan_id FROM student_plan WHERE Plan_id = :plan_id";
+                            $planCheckStmt = $this->executeQuery($planCheckSql, [':plan_id' => $planName]);
+                            if ($planCheckStmt && $planCheckStmt->rowCount() > 0) {
+                                $planId = $planName;
+                                error_log("Found plan ID by direct number: $planId");
+                            } else {
+                                error_log("Numeric plan ID not found in DB: $planName");
+                            }
+                        }
+                        
+                        // ถ้ายังไม่ได้ planId ให้ค้นหาจากชื่อ
+                        if (empty($planId)) {
+                            // ค้นหาจากชื่อเต็มหรือชื่อย่อ แบบเทียบเท่ากัน
                             $sql = "SELECT Plan_id FROM student_plan WHERE Plan_name = :plan_name OR Abbre = :plan_abbre";
                             $stmt = $this->executeQuery($sql, [':plan_name' => $planName, ':plan_abbre' => $planName]);
                             if ($stmt && $stmt->rowCount() > 0) {
                                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
                                 $planId = $result['Plan_id'];
+                                error_log("Found plan ID by exact name: $planId");
                             } else {
-                                throw new Exception("ไม่พบแผนการเรียน \"$planName\" ในระบบ");
+                                // ค้นหาแบบคลุมเครือ
+                                $sql = "SELECT Plan_id FROM student_plan WHERE Plan_name LIKE :plan_name OR Abbre LIKE :plan_abbre";
+                                $stmt = $this->executeQuery($sql, [':plan_name' => "%$planName%", ':plan_abbre' => "%$planName%"]);
+                                if ($stmt && $stmt->rowCount() > 0) {
+                                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                    $planId = $result['Plan_id'];
+                                    error_log("Found plan ID by fuzzy search: $planId");
+                                } else {
+                                    // ไม่พบแผนการเรียน ให้ใช้แผนแรกในระบบ
+                                    $sql = "SELECT Plan_id FROM student_plan ORDER BY Plan_id ASC LIMIT 1";
+                                    $stmt = $this->executeQuery($sql);
+                                    if ($stmt && $stmt->rowCount() > 0) {
+                                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                                        $planId = $result['Plan_id'];
+                                        error_log("Using default plan ID: $planId");
+                                        $error_details[] = "แถวที่ {$row}: ไม่พบแผนการเรียน \"$planName\" ใช้แผนการเรียนเริ่มต้นแทน";
+                                    } else {
+                                        error_log("No plans found in system");
+                                        throw new Exception("ไม่พบแผนการเรียน \"$planName\" ในระบบและไม่มีแผนการเรียนในระบบ");
+                                    }
+                                }
                             }
                         }
                     } else {
-                        throw new Exception("ไม่ระบุแผนการเรียน");
+                        // กรณีไม่มีข้อมูลแผนการเรียน ให้ใช้แผนแรกในระบบ
+                        $sql = "SELECT Plan_id FROM student_plan ORDER BY Plan_id ASC LIMIT 1";
+                        $stmt = $this->executeQuery($sql);
+                        if ($stmt && $stmt->rowCount() > 0) {
+                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                            $planId = $result['Plan_id'];
+                            error_log("No plan specified, using default: $planId");
+                            $error_details[] = "แถวที่ {$row}: ไม่ระบุแผนการเรียน ใช้แผนการเรียนเริ่มต้นแทน";
+                        } else {
+                            error_log("No plans found in system");
+                            throw new Exception("ไม่ระบุแผนการเรียนและไม่มีแผนการเรียนในระบบ");
+                        }
                     }
                     
                     // ตรวจสอบและค้นหา prof_id จากชื่ออาจารย์
@@ -1132,7 +1156,8 @@ class Controller {
                                 $profId, 
                                 $majId, 
                                 $curriId, 
-                                $isStatus
+                                $isStatus,
+                                null
                             );
                             
                             if ($updateResult) {
@@ -1164,7 +1189,8 @@ class Controller {
                                 $profId, 
                                 $majId, 
                                 $curriId, 
-                                $isStatus
+                                $isStatus,
+                                'ไม่ยินยอม'
                             );
                             
                             if ($insertResult) {
@@ -1256,26 +1282,125 @@ class Controller {
     /**
      * เพิ่มข้อมูลการขอเทียบกิจกรรม
      * 
-     * @param int $actAmount จำนวนครั้งที่เข้าร่วม
+     * @param string $requestType ประเภทการขอเทียบ
+     * @param string $requestDetail รายละเอียดการขอเทียบ
+     * @param int $actAmount จำนวนครั้ง
      * @param int $actHour จำนวนชั่วโมง
-     * @param string $upload ชื่อไฟล์เอกสาร (ถ้ามี)
-     * @param string $actSemester ภาคเรียน (เช่น 1/2567)
-     * @param string $actYear ปีการศึกษา (Date format)
-     * @param string $actId รหัสกิจกรรม
+     * @param string $upload ชื่อไฟล์หลักฐาน
+     * @param string $actSemester ภาคเรียน
+     * @param string $actYear ปีการศึกษา
+     * @param string $requestDate วันที่ยื่นคำร้อง
+     * @param string $actId รหัสกิจกรรม (ถ้ามี)
      * @param string $studentId รหัสนักศึกษา
      * @return bool ผลการทำงาน
      */
-    public function insertComparision($actAmount, $actHour, $upload, $actSemester, $actYear, $actId, $studentId) {
-        return $this->insert('comparision', [
-            'Act_amount' => $actAmount,
-            'Act_hour' => $actHour,
-            'Upload' => $upload,
-            'ActSemester' => $actSemester,
-            'ActYear' => $actYear,
-            'Act_id' => $actId,
-            'Stu_id' => $studentId
-        ]);
+
+     public function insertComparision($requestType, $requestDetail, $actAmount, $actHour, $upload, $actSemester, $actYear, $requestDate, $actId, $studentId) {
+        try {
+            $data = [
+                'RequestType' => $requestType,
+                'RequestDetail' => $requestDetail,
+                'Act_amount' => $actAmount,
+                'Act_hour' => $actHour,
+                'Upload' => $upload,
+                'ActSemester' => $actSemester,
+                'ActYear' => $actYear,
+                'RequestDate' => $requestDate,
+                'Status' => 'pending',
+                'Stu_id' => $studentId
+            ];
+            
+            // เพิ่ม Act_id ถ้ามีค่า
+            if (!empty($actId)) {
+                $data['Act_id'] = $actId;
+            }
+            
+            return $this->insert('comparision', $data);
+        } catch(PDOException $e) {
+            $this->logError("PDOException in insertComparision", $e->getMessage());
+            return false;
+        }
     }
+    
+    /**
+     * เพิ่มข้อมูลการเข้าร่วมกิจกรรมจากการเทียบโอน
+     * 
+     * @param string $studentId รหัสนักศึกษา
+     * @param string $activityName ชื่อกิจกรรม
+     * @param int $actAmount จำนวนครั้ง
+     * @param int $actHour จำนวนชั่วโมง
+     * @param string $activityCategory ประเภทกิจกรรม (academic, general)
+     * @param string $actSemester ภาคเรียน
+     * @param string $actYear ปีการศึกษา
+     * @return bool ผลการทำงาน
+     */
+    public function insertParticipation($studentId, $activityName, $actAmount, $actHour, $activityCategory, $actSemester, $actYear) {
+        try {
+            // สร้างรหัสกิจกรรมใหม่สำหรับกิจกรรมที่เทียบโอน (เช่น COMP-001)
+            $query = "SELECT MAX(CAST(SUBSTRING(Act_id, 6) AS UNSIGNED)) as max_id FROM activity WHERE Act_id LIKE 'COMP-%'";
+            $stmt = $this->db->prepare($query);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $next_id = 1;
+            if ($result && $result['max_id']) {
+                $next_id = intval($result['max_id']) + 1;
+            }
+            $actId = 'COMP-' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
+            
+            // กำหนดประเภทกิจกรรม
+            $actTypeId = ($activityCategory === 'academic') ? '2' : '1';
+            
+            // แปลงปีการศึกษาเป็นวันที่
+            $actDate = date('Y-m-d');
+            
+            // ตรวจสอบรูปแบบปีการศึกษา
+            if (is_numeric($actYear)) {
+                // กรณีเป็นตัวเลขปีเช่น 2567
+                $year = intval($actYear) - 543; // แปลง พ.ศ. เป็น ค.ศ.
+                $actDate = $year . '-01-01';
+            } else if (is_object($actYear) && $actYear instanceof DateTime) {
+                // กรณีเป็น DateTime object
+                $actDate = $actYear->format('Y-m-d');
+            } else if (is_string($actYear) && strtotime($actYear) !== false) {
+                // กรณีเป็นสตริงวันที่
+                $actDate = date('Y-m-d', strtotime($actYear));
+            }
+            
+            // เพิ่มกิจกรรมใหม่สำหรับการเทียบโอน
+            $activityData = [
+                'Act_id' => $actId,
+                'Act_name' => '[เทียบโอน] ' . $activityName,
+                'Act_hour' => $actHour,
+                'Act_start_date' => $actDate,
+                'Act_stop_date' => $actDate,
+                'ActSemester' => $actSemester,
+                'ActStatus' => 'เทียบโอน',
+                'ActYear' => $actDate,
+                'Maj_id' => '14', // สาขา SWTC เป็นค่าเริ่มต้น
+                'ActType_id' => $actTypeId
+            ];
+            
+            $this->insert('activity', $activityData);
+            
+            // เพิ่มข้อมูลการเข้าร่วม
+            $participationData = [
+                'Stu_id' => $studentId,
+                'Act_id' => $actId,
+                'ActSemester' => $actSemester,
+                'ActYear' => $actDate,
+                'Act_hour' => $actHour,
+                'CheckIn' => date('Y-m-d H:i:s'),
+                'CheckOut' => date('Y-m-d H:i:s')
+            ];
+            
+            return $this->insert('participation', $participationData);
+        } catch(PDOException $e) {
+            $this->logError("PDOException in insertParticipation", $e->getMessage());
+            return false;
+        }
+    }
+
 
     /**
      * อัปเดตข้อมูลการขอเทียบกิจกรรม
@@ -1306,8 +1431,28 @@ class Controller {
     /**
      * ลบข้อมูลการขอเทียบกิจกรรม
      */
-    public function deleteComparision($comId) {
-        return $this->delete('comparision', 'Com_id', $comId);
+    public function deleteComparision($id) {
+        try {
+            // ดึงข้อมูลไฟล์แนบก่อนลบ
+            $stmt = $this->db->prepare("SELECT Upload FROM comparision WHERE Com_id = ?");
+            $stmt->execute([$id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // ลบไฟล์แนบ (ถ้ามี)
+            if ($row && !empty($row['Upload'])) {
+                $filePath = __DIR__ . '/../uploads/comparision/' . $row['Upload'];
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+            }
+
+            // ลบข้อมูลจากฐานข้อมูล
+            $stmt = $this->db->prepare("DELETE FROM comparision WHERE Com_id = ?");
+            return $stmt->execute([$id]);
+        } catch(PDOException $e) {
+            error_log("Error deleting comparision: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -1317,10 +1462,10 @@ class Controller {
      */
     public function getAllComparisions() {
         $sql = "SELECT c.*, s.Stu_fname, s.Stu_lname, s.Maj_id, t.Title_name 
-                FROM comparision c 
-                LEFT JOIN student s ON c.Stu_id = s.Stu_id 
-                LEFT JOIN title t ON s.Title_id = t.Title_id 
-                ORDER BY c.Com_id DESC";
+                    FROM comparision c 
+                    LEFT JOIN student s ON c.Stu_id = s.Stu_id 
+                    LEFT JOIN title t ON s.Title_id = t.Title_id 
+                    ORDER BY c.Com_id DESC";
         $stmt = $this->executeQuery($sql);
         
         if (!$stmt) {
@@ -1406,6 +1551,70 @@ class Controller {
         }
     }
 
+    /**
+     * เพิ่มข้อมูลการขอเทียบกิจกรรม
+     * 
+     * @param array $data ข้อมูลการขอเทียบกิจกรรม
+     * @return bool ผลการทำงาน
+     */
+    public function addComparision($data) {
+        try {
+            // แปลงปีการศึกษาเป็นรูปแบบ date
+            $year = intval($data['Com_year']) - 543; // แปลง พ.ศ. เป็น ค.ศ.
+            $semester = intval($data['Com_semester']);
+            
+            // กำหนดวันที่ตามภาคเรียน
+            switch($semester) {
+                case 1: // ภาคเรียนที่ 1 (มิ.ย. - ต.ค.)
+                    $date = "$year-06-01";
+                    break;
+                case 2: // ภาคเรียนที่ 2 (พ.ย. - มี.ค.)
+                    $date = "$year-11-01";
+                    break;
+                case 3: // ภาคเรียนที่ 3 (เม.ย. - พ.ค.)
+                    $date = ($year + 1) . "-04-01";
+                    break;
+                default:
+                    $date = "$year-01-01";
+            }
+
+            $sql = "INSERT INTO comparision (
+                Com_id, Com_name, Com_amount, Com_hour, 
+                Com_semester, Com_year, Com_status, Stu_id, Upload
+            ) VALUES (
+                :Com_id, :Com_name, :Com_amount, :Com_hour,
+                :Com_semester, :Com_year, :Com_status, :Stu_id, :Upload
+            )";
+            
+            // Debug log
+            error_log("Adding comparision with data: " . print_r($data, true));
+            
+            $stmt = $this->db->prepare($sql);
+            
+            // ผูกค่าพารามิเตอร์พร้อมระบุ data type
+            $stmt->bindParam(':Com_id', $data['Com_id'], PDO::PARAM_STR);
+            $stmt->bindParam(':Com_name', $data['Com_name'], PDO::PARAM_STR);
+            $stmt->bindParam(':Com_amount', $data['Com_amount'], PDO::PARAM_INT);
+            $stmt->bindParam(':Com_hour', $data['Com_hour'], PDO::PARAM_INT);
+            $stmt->bindParam(':Com_semester', $data['Com_semester'], PDO::PARAM_STR);
+            $stmt->bindParam(':Com_year', $date, PDO::PARAM_STR); // เปลี่ยนเป็นเก็บวันที่
+            $stmt->bindParam(':Com_status', $data['Com_status'], PDO::PARAM_STR);
+            $stmt->bindParam(':Stu_id', $data['Stu_id'], PDO::PARAM_STR);
+            $stmt->bindParam(':Upload', $data['Upload'], PDO::PARAM_STR);
+            
+            $result = $stmt->execute();
+            
+            if (!$result) {
+                error_log("SQL Error: "                 . print_r($stmt->errorInfo(), true));
+            }
+            
+            return $result;
+        } catch(PDOException $e) {
+            error_log("Error adding comparision: " . $e->getMessage());
+            return false;
+        }
+    }
+
     // ---- USER METHODS ----
 
     /**
@@ -1463,7 +1672,7 @@ class Controller {
      * ดึงข้อมูลหลักเกณฑ์ทั้งหมด
      */
     function getCriteria() {
-        $sql = "SELECT c.*, cu.Curri_tname, cu.Curri_t, sp.Plan_name, at.ActType_Name 
+        $sql = "SELECT c.*, cu.Curri_tname, cu.Curri_t, sp.Plan_name, sp.Abbre, at.ActType_Name 
                 FROM criteria c
                 LEFT JOIN curriculum cu ON c.Curri_id = cu.Curri_id
                 LEFT JOIN student_plan sp ON c.Plan_id = sp.Plan_id
@@ -1549,468 +1758,49 @@ class Controller {
     
     // ---- ADDITIONAL METHODS ----
     
-    // ตรวจสอบว่านักศึกษาเข้าร่วมกิจกรรมหรือไม่
-    public function checkStudentParticipation($stuId, $actId) {
-        $sql = "SELECT COUNT(*) FROM participation WHERE Stu_id = :stu_id AND Act_id = :act_id";
-        $stmt = $this->executeQuery($sql, [':stu_id' => $stuId, ':act_id' => $actId]);
-        
-        if ($stmt) {
-            return $stmt->fetchColumn() > 0;
-        }
-        
-        return false;
-    }
-
-    // เพิ่มข้อมูลการเข้าร่วมกิจกรรม
-    public function addParticipation($stuId, $actId, $actSemester, $actYear, $actHour, $checkIn, $checkOut) {
-        if ($this->checkStudentParticipation($stuId, $actId)) {
-            return false; // นักศึกษาเข้าร่วมกิจกรรมนี้แล้ว
-        }
-        
-        return $this->insert('participation', [
-            'Stu_id' => $stuId,
-            'Act_id' => $actId,
-            'ActSemester' => $actSemester,
-            'ActYear' => $actYear,
-            'Act_hour' => $actHour,
-            'CheckIn' => $checkIn,
-            'CheckOut' => $checkOut
-        ]);
-    }
-
-    // ลบข้อมูลการเข้าร่วมกิจกรรม
-    public function removeParticipation($stuId, $actId) {
-        $sql = "DELETE FROM participation WHERE Stu_id = :stu_id AND Act_id = :act_id";
-        return $this->executeQuery($sql, [':stu_id' => $stuId, ':act_id' => $actId]) !== false;
-    }
-
-    // ดึงข้อมูลสรุปกิจกรรมของนักศึกษา
-    public function getStudentActivitySummary($stuId) {
+    // ตรวจสอบการเข้าร่วมกิจกรรม
+    public function checkStudentParticipation($studentId, $activityId) {
         try {
-            // นับจำนวนกิจกรรมและชั่วโมงสะสม
-            $sql = "SELECT 
-                    COUNT(*) as total_activities,
-                    SUM(Act_hour) as total_hours
-                    FROM participation 
-                    WHERE Stu_id = :stu_id";
-            
-            $stmt = $this->executeQuery($sql, [':stu_id' => $stuId]);
-            
-            if ($stmt) {
-                $summary = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                // เพิ่มข้อมูลจากตาราง comparision (ถ้ามี)
-                $sqlComparision = "SELECT 
-                                COUNT(*) as total_comparisions,
-                                SUM(Act_hour) as total_comp_hours
-                                FROM comparision 
-                                WHERE Stu_id = :stu_id";
-                
-                $stmtComp = $this->executeQuery($sqlComparision, [':stu_id' => $stuId]);
-                
-                if ($stmtComp) {
-                    $compSummary = $stmtComp->fetch(PDO::FETCH_ASSOC);
-                    $summary['total_activities'] += $compSummary['total_comparisions'];
-                    $summary['total_hours'] += $compSummary['total_comp_hours'];
-                }
-                
-                return $summary;
-            }
-            
-            return [
-                'total_activities' => 0,
-                'total_hours' => 0
-            ];
+            $sql = "SELECT * FROM participation WHERE Stu_id = ? AND Act_id = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$studentId, $activityId]);
+            return $stmt->rowCount() > 0;
         } catch(PDOException $e) {
-            $this->logError("Error in getStudentActivitySummary", $e->getMessage());
-            return [
-                'total_activities' => 0,
-                'total_hours' => 0
-            ];
+            $this->logError("Error checking participation", $e->getMessage());
+            return false;
         }
     }
 
-    // ดึงข้อมูลการเข้าร่วมกิจกรรมตามภาคเรียน
-    public function getParticipationBySemester($stuId, $semester, $year) {
-        $sql = "SELECT p.*, a.Act_name, a.Act_start_date, a.Act_stop_date, at.ActType_Name
-                FROM participation p
-                JOIN activity a ON p.Act_id = a.Act_id
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id
-                WHERE p.Stu_id = :stu_id
-                AND p.ActSemester = :semester
-                AND p.ActYear = :year
-                ORDER BY a.Act_start_date DESC";
-        
-        $stmt = $this->executeQuery($sql, [
-            ':stu_id' => $stuId,
-            ':semester' => $semester,
-            ':year' => $year
-        ]);
-        
-        if (!$stmt) {
-            return array();
+    // บันทึกการเข้าร่วมกิจกรรม
+    public function addParticipation($studentId, $activityId, $semester, $year, $hours, $checkIn) {
+        try {
+            $sql = "INSERT INTO participation (Stu_id, Act_id, ActSemester, ActYear, Act_hour, CheckIn) 
+                    VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([
+                $studentId,
+                $activityId,
+                $semester,
+                $year, 
+                $hours,
+                $checkIn
+            ]);
+        } catch(PDOException $e) {
+            $this->logError("Error adding participation", $e->getMessage());
+            return false;
         }
-        
-        $participations = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $participations[] = $row;
-        }
-        
-        return $participations;
     }
 
-    // ดึงข้อมูลการเข้าร่วมกิจกรรมตามประเภทกิจกรรม
-    public function getParticipationByActivityType($stuId, $actTypeId) {
-        $sql = "SELECT p.*, a.Act_name, a.Act_start_date, a.Act_stop_date, at.ActType_Name
-                FROM participation p
-                JOIN activity a ON p.Act_id = a.Act_id
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id
-                WHERE p.Stu_id = :stu_id
-                AND a.ActType_id = :act_type_id
-                ORDER BY a.Act_start_date DESC";
-        
-        $stmt = $this->executeQuery($sql, [
-            ':stu_id' => $stuId,
-            ':act_type_id' => $actTypeId
-        ]);
-        
-        if (!$stmt) {
-            return array();
+    // อัปเดตเวลาเช็คเอาท์
+    public function updateParticipationCheckout($studentId, $activityId, $checkOut) {
+        try {
+            $sql = "UPDATE participation SET CheckOut = ? WHERE Stu_id = ? AND Act_id = ?";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([$checkOut, $studentId, $activityId]);
+        } catch(PDOException $e) {
+            $this->logError("Error updating checkout time", $e->getMessage());
+            return false;
         }
-        
-        $participations = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $participations[] = $row;
-        }
-        
-        return $participations;
-    }
-
-    // สร้างรหัสการเข้าสู่ระบบสำหรับนักศึกษาใหม่
-    public function createLoginForStudent($stuId, $status = 'student') {
-        $username = $stuId;
-        $password = md5('password'); // รหัสผ่านเริ่มต้น
-        $currentDate = date('Y-m-d');
-        
-        // ตรวจสอบว่ามี username นี้อยู่แล้วหรือไม่
-        $sql = "SELECT * FROM login WHERE user_id = :username";
-        $stmt = $this->executeQuery($sql, [':username' => $username]);
-        
-        if ($stmt && $stmt->rowCount() > 0) {
-            return false; // มี username นี้อยู่แล้ว
-        }
-        
-        // เพิ่มข้อมูลการเข้าสู่ระบบ
-        return $this->insert('login', [
-            'user_id' => $username,
-            'user_pass' => $password,
-            'status' => $status,
-            'time' => $currentDate,
-            'Stu_id' => $stuId,
-            'Prof_id' => null
-        ]);
-    }
-
-    // สร้างรหัสการเข้าสู่ระบบสำหรับอาจารย์ใหม่
-    public function createLoginForProfessor($profId, $status = 'professor') {
-        $username = 'prof' . $profId;
-        $password = md5('password'); // รหัสผ่านเริ่มต้น
-        $currentDate = date('Y-m-d');
-        
-        // ตรวจสอบว่ามี username นี้อยู่แล้วหรือไม่
-        $sql = "SELECT * FROM login WHERE user_id = :username";
-        $stmt = $this->executeQuery($sql, [':username' => $username]);
-        
-        if ($stmt && $stmt->rowCount() > 0) {
-            return false; // มี username นี้อยู่แล้ว
-        }
-        
-        // เพิ่มข้อมูลการเข้าสู่ระบบ
-        return $this->insert('login', [
-            'user_id' => $username,
-            'user_pass' => $password,
-            'status' => $status,
-            'time' => $currentDate,
-            'Stu_id' => null,
-            'Prof_id' => $profId
-        ]);
-    }
-
-    // ดึงข้อมูลกิจกรรมตามสาขาวิชา
-    public function getActivitiesByMajor($majId) {
-        $sql = "SELECT a.*, at.ActType_Name 
-                FROM activity a 
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id 
-                WHERE a.Maj_id = :maj_id 
-                ORDER BY a.Act_start_date DESC";
-        
-        $stmt = $this->executeQuery($sql, [':maj_id' => $majId]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $activities = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $activities[] = $row;
-        }
-        
-        return $activities;
-    }
-
-    // ดึงข้อมูลกิจกรรมตามภาคเรียน
-    public function getActivitiesBySemester($semester, $year) {
-        $sql = "SELECT a.*, at.ActType_Name, m.Maj_name 
-                FROM activity a 
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id 
-                LEFT JOIN major m ON a.Maj_id = m.Maj_id 
-                WHERE a.ActSemester = :semester 
-                AND a.ActYear = :year
-                ORDER BY a.Act_start_date DESC";
-        
-        $stmt = $this->executeQuery($sql, [
-            ':semester' => $semester,
-            ':year' => $year
-        ]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $activities = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $activities[] = $row;
-        }
-        
-        return $activities;
-    }
-
-    // ดึงข้อมูลกิจกรรมตามช่วงเวลา
-    public function getActivitiesByDateRange($startDate, $endDate) {
-        $sql = "SELECT a.*, at.ActType_Name, m.Maj_name 
-                FROM activity a 
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id 
-                LEFT JOIN major m ON a.Maj_id = m.Maj_id 
-                WHERE a.Act_start_date >= :start_date 
-                AND a.Act_stop_date <= :end_date
-                ORDER BY a.Act_start_date DESC";
-        
-        $stmt = $this->executeQuery($sql, [
-            ':start_date' => $startDate,
-            ':end_date' => $endDate
-        ]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $activities = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $activities[] = $row;
-        }
-        
-        return $activities;
-    }
-
-    // ดึงข้อมูลกิจกรรมตามประเภทกิจกรรม
-    public function getActivitiesByType($actTypeId) {
-        $sql = "SELECT a.*, at.ActType_Name, m.Maj_name 
-                FROM activity a 
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id 
-                LEFT JOIN major m ON a.Maj_id = m.Maj_id 
-                WHERE a.ActType_id = :act_type_id
-                ORDER BY a.Act_start_date DESC";
-        
-        $stmt = $this->executeQuery($sql, [':act_type_id' => $actTypeId]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $activities = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $activities[] = $row;
-        }
-        
-        return $activities;
-    }
-
-    // ดึงข้อมูลกิจกรรมตามสถานะ
-    public function getActivitiesByStatus($status) {
-        $sql = "SELECT a.*, at.ActType_Name, m.Maj_name 
-                FROM activity a 
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id 
-                LEFT JOIN major m ON a.Maj_id = m.Maj_id 
-                WHERE a.ActStatus = :status
-                ORDER BY a.Act_start_date DESC";
-        
-        $stmt = $this->executeQuery($sql, [':status' => $status]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $activities = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $activities[] = $row;
-        }
-        
-        return $activities;
-    }
-
-    // นับจำนวนนักศึกษาที่เข้าร่วมกิจกรรม
-    public function countParticipantsByActivity($actId) {
-        $sql = "SELECT COUNT(*) FROM participation WHERE Act_id = :act_id";
-        $stmt = $this->executeQuery($sql, [':act_id' => $actId]);
-        
-        if ($stmt) {
-            return $stmt->fetchColumn();
-        }
-        
-        return 0;
-    }
-
-    // ค้นหากิจกรรม
-    public function searchActivities($keyword) {
-        $sql = "SELECT a.*, at.ActType_Name, m.Maj_name 
-                FROM activity a 
-                LEFT JOIN activity_type at ON a.ActType_id = at.ActType_id 
-                LEFT JOIN major m ON a.Maj_id = m.Maj_id 
-                WHERE a.Act_name LIKE :keyword 
-                OR a.Act_id LIKE :keyword 
-                OR m.Maj_name LIKE :keyword 
-                OR at.ActType_Name LIKE :keyword
-                ORDER BY a.Act_start_date DESC";
-        
-        $keyword = "%" . $keyword . "%";
-        $stmt = $this->executeQuery($sql, [':keyword' => $keyword]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $activities = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $activities[] = $row;
-        }
-        
-        return $activities;
-    }
-
-    // ค้นหานักศึกษา
-    public function searchStudents($keyword) {
-        $sql = "SELECT s.*, t.Title_name, m.Maj_name, p.Plan_name, 
-                pr.Prof_fname, pr.Prof_lname, pt.Title_name as Prof_title
-                FROM student s
-                LEFT JOIN title t ON s.Title_id = t.Title_id
-                LEFT JOIN major m ON s.Maj_id = m.Maj_id
-                LEFT JOIN student_plan p ON s.Plan_id = p.Plan_id
-                LEFT JOIN professor pr ON s.Prof_id = pr.Prof_id
-                LEFT JOIN title pt ON pr.Title_id = pt.Title_id
-                WHERE s.Stu_id LIKE :keyword 
-                OR s.Stu_fname LIKE :keyword 
-                OR s.Stu_lname LIKE :keyword 
-                OR m.Maj_name LIKE :keyword
-                ORDER BY s.Stu_id ASC";
-        
-        $keyword = "%" . $keyword . "%";
-        $stmt = $this->executeQuery($sql, [':keyword' => $keyword]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $students = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $students[] = $row;
-        }
-        
-        return $students;
-    }
-
-    // ค้นหาอาจารย์
-    public function searchProfessors($keyword) {
-        $sql = "SELECT p.*, t.Title_name, m.Maj_name 
-                FROM professor p 
-                LEFT JOIN title t ON p.Title_id = t.Title_id 
-                LEFT JOIN major m ON p.Major_id = m.Maj_id 
-                WHERE p.Prof_id LIKE :keyword 
-                OR p.Prof_fname LIKE :keyword 
-                OR p.Prof_lname LIKE :keyword 
-                OR m.Maj_name LIKE :keyword
-                ORDER BY p.Prof_id ASC";
-        
-        $keyword = "%" . $keyword . "%";
-        $stmt = $this->executeQuery($sql, [':keyword' => $keyword]);
-        
-        if (!$stmt) {
-            return array();
-        }
-        
-        $professors = array();
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $professors[] = $row;
-        }
-        
-        return $professors;
-    }
-
-    // ตรวจสอบการเข้าสู่ระบบ
-    public function login($username, $password) {
-        if ($this->verifyPassword($username, $password)) {
-            $status = $this->getUserStatus($username);
-            
-            // ดึงข้อมูลผู้ใช้ตามสถานะ
-            $userData = null;
-            
-            if ($status === 'student') {
-                $sql = "SELECT l.*, s.* FROM login l 
-                        JOIN student s ON l.Stu_id = s.Stu_id 
-                        WHERE l.user_id = :username";
-                $stmt = $this->executeQuery($sql, [':username' => $username]);
-                
-                if ($stmt) {
-                    $userData = $stmt->fetch(PDO::FETCH_ASSOC);
-                }
-            } elseif ($status === 'professor' || $status === 'admin') {
-                $sql = "SELECT l.*, p.* FROM login l 
-                        LEFT JOIN professor p ON l.Prof_id = p.Prof_id 
-                        WHERE l.user_id = :username";
-                $stmt = $this->executeQuery($sql, [':username' => $username]);
-                
-                if ($stmt) {
-                    $userData = $stmt->fetch(PDO::FETCH_ASSOC);
-                }
-            }
-            
-            return [
-                'status' => true,
-                'user_status' => $status,
-                'user_data' => $userData
-            ];
-        }
-        
-        return [
-            'status' => false,
-            'message' => 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
-        ];
-    }
-
-    // บันทึกล็อกการเข้าสู่ระบบ
-    public function logLogin($username, $ipAddress) {
-        // เพิ่มฟังก์ชันนี้ถ้าต้องการบันทึกประวัติการเข้าใช้งาน
-        // สามารถสร้างตาราง login_logs เพิ่มเติมในฐานข้อมูล
-        return true;
-    }
-    
-    /**
-     * ดึงข้อมูลกิจกรรมทั้งหมด
-     * 
-     * @return array ข้อมูลกิจกรรมทั้งหมด
-     */
-    public function getAllActivities() {
-        return $this->getAll('activity', 'Act_id', 'ASC');
     }
 }
-
 ?>

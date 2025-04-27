@@ -2,7 +2,7 @@
 if(isset($_GET['menu'])){
     $menu = $_GET['menu'];
 }else{
-    $menu = 1;
+    $menu = 2;
 }
 
 ?>
@@ -20,14 +20,14 @@ if(isset($_GET['menu'])){
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 <!-- Add icons to the links using the .nav-icon class
                with font-awesome or any other icon font library -->
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a href="index.php?menu=1" class="nav-link <?php if($menu==1){echo 'active'; } ?>">
                         <i class="nav-icon fas fa-users-cog"></i>
                         <p>
                             Dashboard
                         </p>
                     </a>
-                </li>
+                </li> -->
 
                 <li class="nav-item">
                     <a href="index.php?menu=2" class="nav-link <?php if($menu==2){echo 'active'; } ?>">

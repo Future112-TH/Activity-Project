@@ -10,8 +10,41 @@ $db = $database->connect();
 // สร้างอ็อบเจกต์ Controller
 $controller = new Controller($db);
 
-// ดึงข้อมูลอาจารย์ที่ปรึกษา (ใช้ session ที่เก็บรหัสอาจารย์)
-$profId = $_SESSION['prof_id'] ?? '30701'; // ตัวอย่างรหัสอาจารย์ (ใช้ session จริงในการพัฒนา)
+// ตรวจสอบการเข้าสู่ระบบ
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
+    // ถ้ายังไม่ได้เข้าสู่ระบบ ให้ redirect ไปหน้า login
+    header("Location: ../login.php");
+    exit();
+}
+
+// ดึงข้อมูลอาจารย์จากการเข้าสู่ระบบ
+$user_id = $_SESSION['user_id'];
+$status = $_SESSION['status'] ?? '';
+
+// ตรวจสอบว่าเป็นอาจารย์หรือไม่
+if ($status === 'professor' || $status === 'admin') {
+    // ดึงรหัสอาจารย์จากตาราง login
+    $loginQuery = "SELECT Prof_id FROM login WHERE user_id = :user_id";
+    $loginStmt = $db->prepare($loginQuery);
+    $loginStmt->bindParam(':user_id', $user_id);
+    $loginStmt->execute();
+    
+    if ($loginRow = $loginStmt->fetch(PDO::FETCH_ASSOC)) {
+        $profId = $loginRow['Prof_id'];
+        // บันทึกรหัสอาจารย์ไว้ใน session
+        $_SESSION['prof_id'] = $profId;
+    } else {
+        // ถ้าไม่พบข้อมูลอาจารย์ ให้ redirect กลับไปที่หน้าหลัก
+        $_SESSION['error'] = "ไม่พบข้อมูลอาจารย์ในระบบ";
+        header("Location: ../index.php");
+        exit();
+    }
+} else {
+    // ถ้าไม่ใช่อาจารย์ ให้ redirect กลับไปที่หน้าหลัก
+    $_SESSION['error'] = "คุณไม่มีสิทธิ์เข้าถึงหน้านี้";
+    header("Location: ../index.php");
+    exit();
+}
 
 // ดึงข้อมูลนักศึกษาที่อยู่ในที่ปรึกษา
 $students = $controller->getAdvisoryStudents($profId);

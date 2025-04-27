@@ -60,22 +60,40 @@ if (empty($student) || empty($activities)) {
         $approved_comparisions = $controller->getApprovedComparisionsByStudentId($student_id);
     } else {
         // ถ้าไม่มีเมธอดนี้ ให้ดึงข้อมูลโดยตรงจาก SQL
-        $comp_sql = "SELECT * FROM comparision WHERE Stu_id = :stu_id AND Status = 'approved' ORDER BY RequestDate DESC";
+        $comp_sql = "SELECT Com_id, Com_name, Com_amount, Com_hour, Com_semester, Com_year, Upload 
+                     FROM comparision 
+                     WHERE Stu_id = :stu_id 
+                     AND Com_status = 'approved' 
+                     ORDER BY Com_year DESC, Com_semester DESC";
         $comp_stmt = $db->prepare($comp_sql);
         $comp_stmt->bindParam(':stu_id', $student_id);
         $comp_stmt->execute();
         $approved_comparisions = $comp_stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
+    // ดึงข้อมูลกิจกรรมที่ขอเทียบโอน (อนุมัติแล้ว) จากตาราง transfer
+    $transfer_sql = "SELECT Com_id, Com_name, Com_amount, Com_hour, Com_semester, Com_year 
+                     FROM transfer 
+                     WHERE Stu_id = :stu_id 
+                     ORDER BY Com_year DESC, Com_semester DESC";
+    $transfer_stmt = $db->prepare($transfer_sql);
+    $transfer_stmt->bindParam(':stu_id', $student_id);
+    $transfer_stmt->execute();
+    $approved_transfers = $transfer_stmt->fetchAll(PDO::FETCH_ASSOC);
+    
     // คำนวณจำนวนชั่วโมงกิจกรรมทั้งหมด
     $total_hours = 0;
     foreach ($activities as $activity) {
-        $total_hours += $activity['Act_hour'];
+        if (isset($activity['Act_hour'])) {
+            $total_hours += $activity['Act_hour'];
+        }
     }
     
     // เพิ่มชั่วโมงจากการเทียบโอนกิจกรรม
     foreach ($approved_comparisions as $comparision) {
-        $total_hours += $comparision['Act_hour'];
+        if (isset($comparision['Com_hour'])) {
+            $total_hours += $comparision['Com_hour'];
+        }
     }
 }
 
@@ -170,13 +188,10 @@ if (!empty($activities)) {
                                     </p>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <!-- ลบส่วนการแสดงผลทั้ง 4 กรอบออกแล้ว -->
-                            </div>
                         </div>
                     </div>
 
-                    <!-- ตารางกิจกรรมที่ขอเทียบโอน (ย้ายขึ้นมาอยู่ข้างบน) -->
+                    <!-- ตารางกิจกรรมที่ขอเทียบโอน -->
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">กิจกรรมที่ขอเทียบโอน (อนุมัติแล้ว)</h3>
@@ -185,49 +200,45 @@ if (!empty($activities)) {
                             <table id="table2" class="table table-bordered table-striped">
                                 <thead>
                                     <tr>
-                                        <th>ลำดับ</th>
-                                        <th>ประเภทการขอเทียบ</th>
-                                        <th>รายละเอียด</th>
-                                        <th>ภาคเรียน/ปีการศึกษา</th>
-                                        <th>จำนวนชั่วโมง</th>
-                                        <th>วันที่อนุมัติ</th>
+                                        <th width="5%">ลำดับ</th>
+                                        <th width="40%">ชื่อกิจกรรม</th>
+                                        <th width="15%">จำนวนกิจกรรม</th>
+                                        <th width="15%">จำนวนชั่วโมง</th>
+                                        <th width="25%">ภาคเรียน/ปีการศึกษา</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php if (!empty($approved_comparisions)) : ?>
-                                    <?php $i = 1; foreach ($approved_comparisions as $comparision) : ?>
-                                    <tr>
-                                        <td><?php echo $i++; ?></td>
-                                        <td>
-                                            <?php 
-                                                    switch ($comparision['RequestType']) {
-                                                        case 'position':
-                                                            echo 'ตำแหน่งในองค์กร';
-                                                            break;
-                                                        case 'award':
-                                                            echo 'รางวัล/การแข่งขัน';
-                                                            break;
-                                                        case 'helper':
-                                                            echo 'ผู้ช่วยงาน';
-                                                            break;
-                                                        default:
-                                                            echo $comparision['RequestType'];
-                                                    }
+                                    <?php if (!empty($approved_transfers)) : ?>
+                                        <?php $i = 1; foreach ($approved_transfers as $transfer) : ?>
+                                            <tr>
+                                                <td class="text-center"><?php echo $i++; ?></td>
+                                                <td><?php echo $transfer['Com_name']; ?></td>
+                                                <td class="text-center"><?php echo $transfer['Com_amount']; ?></td>
+                                                <td class="text-center"><?php echo $transfer['Com_hour']; ?></td>
+                                                <td class="text-center">
+                                                    <?php 
+                                                        $semester = $transfer['Com_semester'];
+                                                        $year = date('Y', strtotime($transfer['Com_year'])) + 543;
+                                                        echo $semester . '/' . $year;
                                                     ?>
-                                        </td>
-                                        <td><?php echo $comparision['RequestDetail']; ?></td>
-                                        <td><?php echo $comparision['ActSemester'] . '/' . date('Y', strtotime($comparision['ActYear'])); ?>
-                                        </td>
-                                        <td><?php echo $comparision['Act_hour']; ?></td>
-                                        <td><?php echo !empty($comparision['ApprovedDate']) ? date('d/m/Y', strtotime($comparision['ApprovedDate'])) : '-'; ?>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        <!-- แสดงรวมชั่วโมง -->
+                                        <tr class="table-info">
+                                            <td colspan="3" class="text-right"><strong>รวมชั่วโมงกิจกรรมที่เทียบโอน:</strong></td>
+                                            <td class="text-center">
+                                                <?php 
+                                                    $total_transfer_hours = array_sum(array_column($approved_transfers, 'Com_hour'));
+                                                    echo $total_transfer_hours;
+                                                ?>
+                                            </td>
+                                            <td></td>
+                                        </tr>
                                     <?php else: ?>
-                                    <tr>
-                                        <td colspan="6" class="text-center">ไม่พบข้อมูลการเทียบโอนกิจกรรมที่อนุมัติแล้ว
-                                        </td>
-                                    </tr>
+                                        <tr>
+                                            <td colspan="5" class="text-center">ไม่พบข้อมูลการเทียบโอนกิจกรรมที่อนุมัติแล้ว</td>
+                                        </tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>

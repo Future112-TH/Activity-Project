@@ -96,7 +96,7 @@ require_once 'includes/header.php';
         <!-- Content Wrapper. Contains page content -->
         <?php 
         switch($menu){
-            case 1: require_once 'dashboard.php'; break;
+            // case 1: require_once 'dashboard.php'; break;
             case 2: require_once 'profile.php'; break;
             
             // case 3: require_once ''; break;
@@ -114,7 +114,7 @@ require_once 'includes/header.php';
             case 12: require_once 'result.php'; break;
             case 13: require_once 'transcript.php'; break;
 
-            default:require_once 'dashboard.php'; break;
+            default:require_once 'profile.php'; break;
         }
         ?>
         <!-- /.content-wrapper -->

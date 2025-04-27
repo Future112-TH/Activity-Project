@@ -13,6 +13,14 @@ if (!isset($controller)) {
     $controller = new Controller($db);
 }
 
+// ตรวจสอบว่ามีการล็อกอินหรือไม่
+if (!isset($_SESSION['user_id']) || $_SESSION['status'] !== 'student') {
+    header("Location: login.php");
+    exit();
+}
+
+// ดึงข้อมูลนักศึกษา
+$studentInfo = $controller->getStudentById($_SESSION['user_id']);
 
 ?>
 
@@ -44,9 +52,9 @@ if (!isset($controller)) {
                 <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
                 <h5><i class="icon fas fa-check"></i> สำเร็จ!</h5>
                 <?php 
-                        echo $_SESSION['success']; 
-                        unset($_SESSION['success']);
-                    ?>
+                    echo $_SESSION['success']; 
+                    unset($_SESSION['success']);
+                ?>
             </div>
             <?php endif; ?>
 
@@ -55,9 +63,9 @@ if (!isset($controller)) {
                 <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
                 <h5><i class="icon fas fa-ban"></i> เกิดข้อผิดพลาด!</h5>
                 <?php 
-                        echo $_SESSION['error']; 
-                        unset($_SESSION['error']);
-                    ?>
+                    echo $_SESSION['error']; 
+                    unset($_SESSION['error']);
+                ?>
             </div>
             <?php endif; ?>
 
@@ -68,7 +76,7 @@ if (!isset($controller)) {
                         <div class="card-header">
                             <h3 class="card-title">ประวัติการยื่นคำร้องขอเทียบกิจกรรม</h3>
                             <div class="card-tools">
-                                <button type="button" class="btn btn-primary" data-toggle="modal"
+                                <button type="button" class="btn btn-primary" data-toggle="modal" 
                                     data-target="#modal-add-request">
                                     <i class="fas fa-plus"></i> ยื่นคำร้อง
                                 </button>
@@ -80,132 +88,99 @@ if (!isset($controller)) {
                                 <thead>
                                     <tr>
                                         <th width="5%">ลำดับ</th>
-                                        <th width="15%">วันที่ยื่นคำร้อง</th>
-                                        <th width="15%">ประเภทการขอเทียบ</th>
-                                        <th width="25%">ชื่อกิจกรรม</th>
-                                        <th width="10%">ภาคเรียน/ปีการศึกษา</th>
+                                        <th width="20%">ชื่อกิจกรรม</th>
+                                        <th width="10%">จำนวนกิจกรรม</th>
                                         <th width="10%">จำนวนชั่วโมง</th>
+                                        <th width="15%">ภาคเรียน/ปีการศึกษา</th>
                                         <th width="10%">สถานะ</th>
-                                        <th width="10%">จัดการ</th>
+                                        <th width="15%">หลักฐาน/จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php 
-                                        // ดึงข้อมูลการขอเทียบกิจกรรมของนักศึกษา
-                                        $comparisions = $controller->getComparisionsByStudentId($_SESSION['user_id']);
-                                        
-                                        if ($comparisions) {
-                                            $i = 1;
-                                            foreach ($comparisions as $row) {
-                                                // แปลงประเภทการขอเทียบเป็นภาษาไทย
-                                                $requestTypeText = '';
-                                                switch ($row['RequestType']) {
-                                                    case 'position':
-                                                        $requestTypeText = 'ตำแหน่งในการจัดกิจกรรม';
-                                                        break;
-                                                    case 'award':
-                                                        $requestTypeText = 'รางวัล/การแข่งขัน';
-                                                        break;
-                                                    case 'helper':
-                                                        $requestTypeText = 'ผู้ช่วยกิจกรรม';
-                                                        break;
-                                                    default:
-                                                        $requestTypeText = $row['RequestType'];
-                                                }
-                                                
-                                                // แปลงสถานะเป็นภาษาไทยและกำหนด CSS class
-                                                $statusText = '';
-                                                $statusClass = '';
-                                                switch ($row['Status']) {
-                                                    case 'pending':
-                                                        $statusText = 'รอการพิจารณา';
-                                                        $statusClass = 'badge badge-warning';
-                                                        break;
-                                                    case 'approved':
-                                                        $statusText = 'อนุมัติแล้ว';
-                                                        $statusClass = 'badge badge-success';
-                                                        break;
-                                                    case 'rejected':
-                                                        $statusText = 'ไม่อนุมัติ';
-                                                        $statusClass = 'badge badge-danger';
-                                                        break;
-                                                    default:
-                                                        $statusText = $row['Status'];
-                                                        $statusClass = 'badge badge-secondary';
-                                                }
-                                                
-                                                // จัดรูปแบบวันที่
-                                                $requestDate = date('d/m/Y H:i', strtotime($row['RequestDate']));
-                                                
-                                                echo "<tr>
-                                                        <td>{$i}</td>
-                                                        <td>{$requestDate}</td>
-                                                        <td>{$requestTypeText}</td>
-                                                        <td>";
-                                                        
-                                                // เพิ่มเงื่อนไขตรวจสอบว่ามี Act_id หรือไม่
-                                                if (!empty($row['Act_id'])) {
-                                                    $activity = $controller->getActivityById($row['Act_id']);
-                                                    if ($activity) {
-                                                        echo $activity['Act_name'];
-                                                    } else {
-                                                        echo $row['RequestDetail'];
-                                                    }
-                                                } else {
-                                                    echo $row['RequestDetail'];
-                                                }
-
-                                                echo "</td>
-                                                        <td>{$row['ActSemester']}/{$row['ActYear']}</td>
-                                                        <td>{$row['Act_hour']}</td>
-                                                        <td><span class=\"{$statusClass}\">{$statusText}</span></td>
-                                                        <td>";
-                                                
-                                                // แสดงปุ่มดูหลักฐาน
-                                                if (!empty($row['Upload'])) {
-                                                    echo "<a href=\"uploads/comparision/{$row['Upload']}\" target=\"_blank\" class=\"btn btn-info btn-sm\" title=\"ดูหลักฐาน\">
-                                                            <i class=\"fas fa-file\"></i>
-                                                          </a> ";
-                                                }
-                                                            
-                                                // แสดงปุ่มลบเฉพาะรายการที่ยังไม่ได้รับการอนุมัติ
-                                                if ($row['Status'] === 'pending') {
-                                                    echo "<a href=\"./process/process_comparision.php?action=delete&id={$row['Com_id']}\" 
-                                                           class=\"btn btn-danger btn-sm\" 
-                                                           onclick=\"return confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')\" 
-                                                           title=\"ลบ\">
-                                                            <i class=\"fas fa-trash\"></i>
-                                                        </a>";
-                                                }
-                                                
-                                                // แสดงความคิดเห็นจากผู้ดูแลระบบ (ถ้ามี)
-                                                if (!empty($row['Comment'])) {
-                                                    echo " <button type=\"button\" class=\"btn btn-secondary btn-sm\" title=\"ความคิดเห็น\" 
-                                                             data-toggle=\"popover\" data-content=\"{$row['Comment']}\">
-                                                            <i class=\"fas fa-comment\"></i>
-                                                          </button>";
-                                                }
-                                                
-                                                echo "</td>
-                                                     </tr>";
-                                                $i++;
+                                    // ดึงข้อมูลการขอเทียบกิจกรรมของนักศึกษา
+                                    $comparisions = $controller->getComparisionsByStudentId($_SESSION['user_id']);
+                                    
+                                    if ($comparisions) {
+                                        $i = 1;
+                                        foreach ($comparisions as $row) {
+                                            // แปลงสถานะเป็นภาษาไทย
+                                            $statusText = '';
+                                            $statusClass = '';
+                                            $status = $row['Com_status'] ?? 'pending';
+                                            
+                                            switch ($status) {
+                                                case 'pending':
+                                                    $statusText = 'รอการพิจารณา';
+                                                    $statusClass = 'badge badge-warning';
+                                                    break;
+                                                case 'approved':
+                                                    $statusText = 'อนุมัติแล้ว';
+                                                    $statusClass = 'badge badge-success';
+                                                    break;
+                                                case 'rejected':
+                                                    $statusText = 'ไม่อนุมัติ';
+                                                    $statusClass = 'badge badge-danger';
+                                                    break;
                                             }
+                                            
+                                            // จัดรูปแบบการแสดงผลภาคเรียน/ปีการศึกษา
+                                            $semesterYear = $row['Com_semester'] . '/' . date('Y', strtotime($row['Com_year'])) + 543;
+
+                                            echo "<tr>
+                                                    <td>{$i}</td>
+                                                    <td>{$row['Com_name']}</td>
+                                                    <td>{$row['Com_amount']}</td>
+                                                    <td>{$row['Com_hour']}</td>
+                                                    <td>{$semesterYear}</td>
+                                                    <td><span class=\"{$statusClass}\">{$statusText}</span></td>
+                                                    <td>";
+                                            
+                                            // แสดงปุ่มดูหลักฐาน
+                                            if (!empty($row['Upload'])) {
+                                                echo "<a href=\"../uploads/comparision/{$row['Upload']}\" 
+                                                      target=\"_blank\" 
+                                                      class=\"btn btn-info btn-sm\" 
+                                                      title=\"ดูหลักฐาน\">
+                                                        <i class=\"fas fa-file\"></i>
+                                                     </a> ";
+                                            }
+                                                    
+                                            // แสดงปุ่มลบเฉพาะรายการที่ยังไม่ได้รับการอนุมัติ
+                                            if ($status === 'pending') {
+                                                echo "<a href=\"process/process_manage_comparision.php?action=delete&id={$row['Com_id']}\" 
+                                                      class=\"btn btn-danger btn-sm\" 
+                                                      onclick=\"return confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')\" 
+                                                      title=\"ลบ\">
+                                                        <i class=\"fas fa-trash\"></i>
+                                                     </a>";
+                                            }
+                                            
+                                            // แสดงความคิดเห็น (ถ้ามี)
+                                            if (!empty($row['Comment'])) {
+                                                echo " <button type=\"button\" 
+                                                        class=\"btn btn-secondary btn-sm\" 
+                                                        title=\"ความคิดเห็น\" 
+                                                        data-toggle=\"popover\" 
+                                                        data-content=\"{$row['Comment']}\">
+                                                        <i class=\"fas fa-comment\"></i>
+                                                      </button>";
+                                            }
+                                            
+                                            echo "</td></tr>";
+                                            $i++;
                                         }
+                                    }
                                     ?>
                                 </tbody>
                             </table>
                         </div>
-                        <!-- /.card-body -->
                     </div>
-                    <!-- /.card -->
                 </div>
-                <!-- /.col-md-12 -->
             </div>
-            <!-- /.row -->
-        </div><!-- /.container-fluid -->
+        </div>
     </div>
-    <!-- /.content -->
-
+    
     <!-- Modal ยื่นคำร้อง -->
     <div class="modal fade" id="modal-add-request">
         <div class="modal-dialog modal-lg">
@@ -216,70 +191,80 @@ if (!isset($controller)) {
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <form action="./process/process_comparision.php?action=add" method="POST" enctype="multipart/form-data">
+                <form action="./process/process_manage_comparision.php" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="add">
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="request_type">ประเภทการขอเทียบ <span class="text-danger">*</span></label>
-                            <select class="form-control" id="request_type" name="request_type" required>
-                                <option value="">เลือกประเภทการขอเทียบ</option>
-                                <option value="position">ตำแหน่งในการจัดกิจกรรม</option>
-                                <option value="award">รางวัล/การแข่งขัน</option>
-                                <option value="helper">ผู้ช่วยกิจกรรม</option>
-                            </select>
-                        </div>
-
-                        <!-- เปลี่ยนฟอร์มเลือกกิจกรรม -->
-                        <div class="form-group">
-                            <label for="act_id">เลือกกิจกรรม <span class="text-danger">*</span></label>
-                            <select class="form-control" id="act_id" name="act_id" required
-                                onchange="updateActivityDetails()">
-                                <option value="">เลือกกิจกรรม</option>
-                                <?php 
-                                    // ดึงข้อมูลกิจกรรมทั้งหมดจากฐานข้อมูล
-                                    $activities = $controller->getActivities();
-                                    
-                                    if ($activities) {
-                                        foreach ($activities as $activity) {
-                                            echo "<option value=\"{$activity['Act_id']}\" 
-                                                data-semester=\"{$activity['ActSemester']}\" 
-                                                data-year=\"{$activity['ActYear']}\" 
-                                                data-hour=\"{$activity['Act_hour']}\">
-                                                {$activity['Act_name']} ({$activity['ActSemester']}/{$activity['ActYear']})
-                                                </option>";
-                                        }
-                                    }
-                                ?>
-                            </select>
+                            <label for="com_name">ชื่อกิจกรรม <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="com_name" name="activity_name" required>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="act_amount">จำนวนครั้งที่เข้าร่วม <span
-                                            class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="act_amount" name="act_amount" min="1"
-                                        max="100" value="1" required>
+                                    <label for="com_amount">จำนวนกิจกรรม <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="com_amount" name="com_amount" 
+                                        min="1" max="10" value="1" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="act_hour">จำนวนชั่วโมงที่ขอเทียบ <span
-                                            class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="act_hour" name="act_hour" min="1"
-                                        max="100" required>
+                                    <label for="com_hour">จำนวนชั่วโมง <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="com_hour" name="activity_hour" 
+                                        min="1" max="100" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="com_semester">ภาคเรียน <span class="text-danger">*</span></label>
+                                    <select class="form-control" id="com_semester" name="semester" required>
+                                        <option value="">เลือกภาคเรียน</option>
+                                        <option value="1">ภาคเรียนที่ 1</option>
+                                        <option value="2">ภาคเรียนที่ 2</option>
+                                        <option value="3">ภาคเรียนที่ 3</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="com_year">ปีการศึกษา <span class="text-danger">*</span></label>
+                                    <select class="form-control" id="com_year" name="year" required>
+                                        <option value="">เลือกปีการศึกษา</option>
+                                        <?php
+                                            // ปีปัจจุบัน
+                                            $currentYear = (int)date('Y') + 543;
+                                            // ปีที่เริ่มการศึกษา (ย้อนหลัง 4 ปี)
+                                            $startYear = $currentYear - 4;
+                                            
+                                            // แสดงตัวเลือกปีการศึกษา
+                                            for($year = $currentYear; $year >= $startYear; $year--) {
+                                                echo "<option value=\"{$year}\">{$year}</option>";
+                                            }
+                                        ?>
+                                    </select>
                                 </div>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="upload_file">หลักฐานประกอบการขอเทียบ (ถ้ามี)</label>
+                            <label for="upload_file">หลักฐานประกอบการพิจารณา <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <div class="custom-file">
-                                    <input type="file" class="custom-file-input" id="upload_file" name="upload_file">
+                                    <input type="file" 
+                                        class="custom-file-input" 
+                                        id="upload_file" 
+                                        name="upload_file" 
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        required>
                                     <label class="custom-file-label" for="upload_file">เลือกไฟล์</label>
                                 </div>
                             </div>
-                            <small class="form-text text-muted">รองรับไฟล์ PDF, JPG, PNG ขนาดไม่เกิน 2MB</small>
+                            <small class="form-text text-muted">
+                                กรุณาแนบหลักฐาน เช่น หนังสือรับรอง ประกาศนียบัตร ภาพถ่าย ฯลฯ (รองรับไฟล์ PDF, JPG, PNG ขนาดไม่เกิน 2MB)
+                            </small>
                         </div>
                     </div>
                     <div class="modal-footer justify-content-between">
@@ -288,95 +273,56 @@ if (!isset($controller)) {
                     </div>
                 </form>
             </div>
-            <!-- /.modal-content -->
         </div>
-        <!-- /.modal-dialog -->
     </div>
-    <!-- /.modal -->
+
+    <!-- JavaScript for form validation and file input -->
+    <script>
+    $(document).ready(function() {
+        // Initialize custom file input
+        bsCustomFileInput.init();
+
+        // Form validation before submit
+        $('form').on('submit', function(e) {
+            var fileInput = $('#upload_file')[0];
+            var fileSize = fileInput.files[0]?.size || 0;
+            var fileType = fileInput.files[0]?.type || '';
+            
+            // Check file size (2MB = 2097152 bytes)
+            if (fileSize > 2097152) {
+                e.preventDefault();
+                alert('ขนาดไฟล์ต้องไม่เกิน 2MB');
+                return false;
+            }
+
+            // Check file type
+            var allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+            if (!allowedTypes.includes(fileType)) {
+                e.preventDefault();
+                alert('รองรับเฉพาะไฟล์ PDF, JPG และ PNG เท่านั้น');
+                return false;
+            }
+        });
+
+        // Update filename on file select
+        $('.custom-file-input').on('change', function() {
+            var fileName = $(this).val().split('\\').pop();
+            $(this).next('.custom-file-label').html(fileName);
+        });
+    });
+    </script>
 </div>
 
 <!-- Page specific script -->
 <script>
-function updateActivityDetails() {
-    var activitySelect = document.getElementById('act_id');
-    var semesterSelect = document.getElementById('act_semester');
-    var yearSelect = document.getElementById('act_year');
-    var hourInput = document.getElementById('act_hour');
-
-    // ถ้าไม่ได้เลือกกิจกรรม ให้ล้างค่าฟิลด์อื่นๆ
-    if (activitySelect.value === '') {
-        semesterSelect.value = '';
-        yearSelect.value = '';
-        hourInput.value = '';
-
-        // เปิดให้แก้ไขได้
-        semesterSelect.disabled = false;
-        yearSelect.disabled = false;
-        return;
-    }
-
-    // ดึงข้อมูลจาก data attributes
-    var selectedOption = activitySelect.options[activitySelect.selectedIndex];
-    var semester = selectedOption.getAttribute('data-semester');
-    var year = selectedOption.getAttribute('data-year');
-    var hour = selectedOption.getAttribute('data-hour');
-
-    // กำหนดค่าให้ฟิลด์
-    semesterSelect.value = semester;
-    yearSelect.value = year;
-
-    // ถ้าไม่มีค่า hour ที่กรอกไว้ ให้กำหนดเป็นค่าจากกิจกรรม
-    if (hourInput.value === '' || hourInput.value === '0') {
-        hourInput.value = hour;
-    }
-
-    // ล็อคฟิลด์ไม่ให้แก้ไข
-    semesterSelect.disabled = true;
-    yearSelect.disabled = true;
-
-    // สร้าง hidden fields เพื่อส่งค่า
-    var form = activitySelect.closest('form');
-
-    // ตรวจสอบและสร้าง/อัปเดต hidden field สำหรับ semester
-    var hiddenSemester = document.getElementById('hidden_semester');
-    if (!hiddenSemester) {
-        hiddenSemester = document.createElement('input');
-        hiddenSemester.type = 'hidden';
-        hiddenSemester.id = 'hidden_semester';
-        hiddenSemester.name = 'act_semester';
-        form.appendChild(hiddenSemester);
-    }
-    hiddenSemester.value = semester;
-
-    // ตรวจสอบและสร้าง/อัปเดต hidden field สำหรับ year
-    var hiddenYear = document.getElementById('hidden_year');
-    if (!hiddenYear) {
-        hiddenYear = document.createElement('input');
-        hiddenYear.type = 'hidden';
-        hiddenYear.id = 'hidden_year';
-        hiddenYear.name = 'act_year';
-        form.appendChild(hiddenYear);
-    }
-    hiddenYear.value = year;
-}
-
-// เรียกฟังก์ชันเมื่อโหลดหน้าเพจและเมื่อเปิด modal
 $(document).ready(function() {
-    // ทำงานเมื่อเลือกกิจกรรม
-    $('#act_id').change(function() {
-        updateActivityDetails();
+    // เปิดใช้งาน popover สำหรับแสดงความคิดเห็น
+    $('[data-toggle="popover"]').popover({
+        trigger: 'hover',
+        placement: 'top'
     });
-
-    // ทำงานเมื่อเปิด modal
-    $('#modal-add-request').on('shown.bs.modal', function() {
-        updateActivityDetails();
-    });
-});
-
-// เรียกฟังก์ชันเมื่อเปิด modal เพื่อตั้งค่าเริ่มต้น
-$(document).ready(function() {
-    $('#modal-add-request').on('shown.bs.modal', function() {
-        updateActivityDetails();
-    });
+    
+    // เปิดใช้งาน custom file input
+    bsCustomFileInput.init();
 });
 </script>

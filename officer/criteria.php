@@ -105,7 +105,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                                             <td><?php echo $row['Crit_id']; ?></td>
                                             <td><?php echo $row['Crit_name']; ?></td>
                                             <td><?php echo $row['Curri_tname']; ?></td>
-                                            <td><?php echo $row['Plan_name']; ?></td>
+                                            <td><?php echo $row['Abbre']; ?></td>
                                             <td><?php echo $row['ActType_Name']; ?></td>
                                             <td class="text-center"><?php echo $row['Act_hour']; ?></td>
                                             <td class="text-center"><?php echo $row['Act_amount']; ?></td>
@@ -183,7 +183,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                             <?php
                             if($plans && $plans->rowCount() > 0) {
                                 while($plan = $plans->fetch(PDO::FETCH_ASSOC)) {
-                                    echo '<option value="' . $plan['Plan_id'] . '">' . $plan['Plan_name'] . '</option>';
+                                    echo '<option value="' . $plan['Plan_id'] . '">' . $plan['Abbre'] . '</option>';
                                 }
                             }
                             ?>
@@ -279,8 +279,7 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                                 
                                 while($plan = $plans->fetch(PDO::FETCH_ASSOC)) {
                                     $selected = ($editCriteria['Plan_id'] == $plan['Plan_id']) ? 'selected' : '';
-                                    echo '<option value="' . $plan['Plan_id'] . '" ' . $selected . '>' . 
-                                         $plan['Plan_name'] . '</option>';
+                                    echo '<option value="' . $plan['Plan_id'] . '" ' . $selected . '>' . $plan['Abbre'] . '</option>';
                                 }
                             }
                             ?>

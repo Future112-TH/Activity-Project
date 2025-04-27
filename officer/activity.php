@@ -131,11 +131,11 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                     class="badge badge-<?php echo $statusClass; ?>"><?php echo $row['ActStatus']; ?></span>
                                             </td>
                                             <td>
-                                                <a href="index.php?menu=10&view=<?php echo $row['Act_id']; ?>"
+                                                <a href="index.php?menu=10&view=<?php echo $row['Act_id']; ?>" 
                                                     class="btn btn-info btn-sm">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                                <a href="index.php?menu=10&edit=<?php echo $row['Act_id']; ?>"
+                                                <a href="index.php?menu=10&edit=<?php echo $row['Act_id']; ?>" 
                                                     class="btn btn-warning btn-sm">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
@@ -651,6 +651,10 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <a href="checkin.php?act_id=<?php echo $viewActivity['Act_id']; ?>" 
+                        class="btn btn-success">
+                        <i class="fas fa-clock mr-1"></i> เปิดหน้าเช็คอิน
+                    </a>
                     <a href="index.php?menu=10" class="btn btn-secondary">
                         <i class="fas fa-times mr-1"></i> ปิด
                     </a>
