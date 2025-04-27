@@ -369,13 +369,30 @@ class Controller {
     }
 
     // ดึงนักศึกษาที่เข้าร่วมกิจกรรม
-    function getActivityParticipants($act_id) {
-        $sql = "SELECT p.*, s.Stu_fname, s.Stu_lname, m.Maj_name 
-                FROM participation p 
-                JOIN student s ON p.Stu_id = s.Stu_id 
-                JOIN major m ON s.Maj_id = m.Maj_id 
-                WHERE p.Act_id = :act_id";
-        return $this->executeQuery($sql, [':act_id' => $act_id]);
+    public function getActivityParticipants($actId) {
+        try {
+            $query = "SELECT s.Stu_id, s.Stu_fname, s.Stu_lname, 
+                         m.Maj_name, p.Act_hour, p.CheckIn, p.CheckOut 
+                  FROM student s 
+                  INNER JOIN major m ON s.Maj_id = m.Maj_id 
+                  INNER JOIN participation p ON s.Stu_id = p.Stu_id 
+                  WHERE p.Act_id = :act_id 
+                  ORDER BY s.Stu_id ASC";
+                  
+            $stmt = $this->db->prepare($query);
+            $stmt->bindParam(':act_id', $actId);
+            $stmt->execute();
+            
+            // Debug
+            if ($stmt->rowCount() == 0) {
+                error_log("No participants found for activity ID: " . $actId);
+            }
+            
+            return $stmt;
+        } catch(PDOException $e) {
+            $this->logError("Error in getActivityParticipants: " . $e->getMessage());
+            return false;
+        }
     }
 
     // ---- ADVISOR METHODS ----
@@ -613,8 +630,15 @@ class Controller {
                 'Maj_id' => $majId,
                 'Curri_id' => $curriId,
                 'is_status' => $is_status,
-                'pdpa' => $pdpa  // เพิ่มฟิลด์ pdpa
+                'pdpa' => $pdpa
             ]);
+            
+            if ($result) {
+                // สร้างบัญชีผู้ใช้สำหรับนักศึกษาใหม่
+                $this->createLoginForStudent($stuId);
+            }
+            
+            return $result;
         } catch(PDOException $e) {
             $this->logError("PDOException in insertStudent", $e->getMessage());
             return false;
@@ -1073,7 +1097,7 @@ class Controller {
                         throw new Exception("ไม่ระบุอาจารย์ที่ปรึกษา");
                     }
                     
-                    // ตรวจสอบและค้นหา curri_id
+                    // ตรวจสอบและค้นหา curri_id จากชื่อหลักสูตร
                     $curriId = null;
                     if (!empty($curriName)) {
                         if (is_numeric($curriName)) {
@@ -1597,7 +1621,7 @@ class Controller {
             $stmt->bindParam(':Com_amount', $data['Com_amount'], PDO::PARAM_INT);
             $stmt->bindParam(':Com_hour', $data['Com_hour'], PDO::PARAM_INT);
             $stmt->bindParam(':Com_semester', $data['Com_semester'], PDO::PARAM_STR);
-            $stmt->bindParam(':Com_year', $date, PDO::PARAM_STR); // เปลี่ยนเป็นเก็บวันที่
+            $stmt->bindParam(':Com_year', $date, PDO::PARAM_STR);
             $stmt->bindParam(':Com_status', $data['Com_status'], PDO::PARAM_STR);
             $stmt->bindParam(':Stu_id', $data['Stu_id'], PDO::PARAM_STR);
             $stmt->bindParam(':Upload', $data['Upload'], PDO::PARAM_STR);
@@ -1605,7 +1629,7 @@ class Controller {
             $result = $stmt->execute();
             
             if (!$result) {
-                error_log("SQL Error: "                 . print_r($stmt->errorInfo(), true));
+                error_log("SQL Error: ". print_r($stmt->errorInfo(), true));
             }
             
             return $result;
@@ -1692,7 +1716,7 @@ class Controller {
     /**
      * เพิ่มข้อมูลหลักเกณฑ์ โดยสร้างรหัสอัตโนมัติ
      */
-    function insertCriteria($critName, $curriId, $planId, $actTypeId, $actHour, $actAmount = 1) {
+    function insertCriteria($critName, $curriId, $planId, $actTypeId, $critHour, $critAmount = 1) {
         try {
             // ค้นหารหัสหลักเกณฑ์ล่าสุด
             $query = "SELECT MAX(CAST(SUBSTRING(Crit_id, 2) AS UNSIGNED)) as max_id FROM criteria WHERE Crit_id LIKE 'C%'";
@@ -1714,8 +1738,8 @@ class Controller {
                 'Curri_id' => $curriId,
                 'Plan_id' => $planId,
                 'ActType_id' => $actTypeId,
-                'Act_hour' => $actHour,
-                'Act_amount' => $actAmount
+                'Crit_hour' => $critHour,    // แก้ไขชื่อฟิลด์
+                'Crit_amount' => $critAmount  // แก้ไขชื่อฟิลด์
             ]);
         } catch(PDOException $e) {
             $this->logError("PDOException in insertCriteria", $e->getMessage());
@@ -1726,17 +1750,17 @@ class Controller {
     /**
      * อัปเดตข้อมูลหลักเกณฑ์
      */
-    function updateCriteria($critId, $critName, $curriId, $planId, $actTypeId, $actHour, $actAmount = null) {
+    function updateCriteria($critId, $critName, $curriId, $planId, $actTypeId, $critHour, $critAmount = null) {
         $data = [
             'Crit_name' => $critName,
             'Curri_id' => $curriId,
             'Plan_id' => $planId,
             'ActType_id' => $actTypeId,
-            'Act_hour' => $actHour
+            'Crit_hour' => $critHour     // แก้ไขชื่อฟิลด์
         ];
         
-        if ($actAmount !== null) {
-            $data['Act_amount'] = $actAmount;
+        if ($critAmount !== null) {
+            $data['Crit_amount'] = $critAmount;  // แก้ไขชื่อฟิลด์
         }
         
         return $this->update('criteria', $data, 'Crit_id', $critId);
@@ -1799,6 +1823,60 @@ class Controller {
             return $stmt->execute([$checkOut, $studentId, $activityId]);
         } catch(PDOException $e) {
             $this->logError("Error updating checkout time", $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * สร้างบัญชีผู้ใช้สำหรับนักศึกษาใหม่
+     * 
+     * @param string $studentId รหัสนักศึกษา
+     * @return bool ผลการทำงาน
+     */
+    private function createLoginForStudent($studentId) {
+        try {
+            // ตรวจสอบว่ามีข้อมูลในตาราง login แล้วหรือไม่
+            $checkSql = "SELECT user_id FROM login WHERE user_id = :user_id";
+            $checkStmt = $this->db->prepare($checkSql);
+            $checkStmt->bindParam(':user_id', $studentId);
+            $checkStmt->execute();
+
+            if ($checkStmt->rowCount() > 0) {
+                // ถ้ามีข้อมูลแล้ว ให้อัปเดตรหัสผ่าน
+                $sql = "UPDATE login SET user_pass = :password WHERE user_id = :user_id";
+            } else {
+                // ถ้ายังไม่มี ให้เพิ่มข้อมูลใหม่
+                $sql = "INSERT INTO login (user_id, user_pass, status, time, Stu_id) 
+                       VALUES (:user_id, :password, 'student', :time, :stu_id)";
+            }
+
+            $stmt = $this->db->prepare($sql);
+            
+            // ใช้รหัสนักศึกษาเป็นรหัสผ่านเริ่มต้น และเข้ารหัสด้วย MD5
+            $password = md5($studentId);
+            $currentTime = date('Y-m-d');
+            
+            $stmt->bindParam(':user_id', $studentId);
+            $stmt->bindParam(':password', $password);
+
+            if ($checkStmt->rowCount() == 0) {
+                // เพิ่มพารามิเตอร์เพิ่มเติมสำหรับการสร้างบัญชีใหม่
+                $stmt->bindParam(':time', $currentTime);
+                $stmt->bindParam(':stu_id', $studentId);
+            }
+            
+            $result = $stmt->execute();
+
+            if ($result) {
+                $this->logError("Created/Updated login account for student: " . $studentId);
+                return true;
+            } else {
+                $this->logError("Failed to create/update login account for student: " . $studentId);
+                return false;
+            }
+
+        } catch(PDOException $e) {
+            $this->logError("Error creating login for student", $e->getMessage());
             return false;
         }
     }

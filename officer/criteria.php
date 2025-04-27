@@ -107,8 +107,8 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                                             <td><?php echo $row['Curri_tname']; ?></td>
                                             <td><?php echo $row['Abbre']; ?></td>
                                             <td><?php echo $row['ActType_Name']; ?></td>
-                                            <td class="text-center"><?php echo $row['Act_hour']; ?></td>
-                                            <td class="text-center"><?php echo $row['Act_amount']; ?></td>
+                                            <td class="text-center"><?php echo $row['Crit_hour']; ?></td>
+                                            <td class="text-center"><?php echo $row['Crit_amount']; ?></td>
                                             <td class="text-center">
                                                 <div class="btn-group">
                                                     <a href="index.php?menu=8&edit=<?php echo $row['Crit_id']; ?>"
@@ -203,16 +203,12 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="act_hour">จำนวนชั่วโมง <span class="text-danger">*</span></label>
-                        <input type="number" name="act_hour" id="act_hour" class="form-control" min="1" value="1"
-                            required>
-                        <small class="form-text text-muted">จำนวนชั่วโมงที่ต้องเข้าร่วมตามเกณฑ์</small>
+                        <label for="crit_hour">จำนวนชั่วโมง <span class="text-danger">*</span></label>
+                        <input type="number" name="crit_hour" id="crit_hour" class="form-control" min="1" value="1" required>
                     </div>
                     <div class="form-group">
-                        <label for="act_amount">จำนวนกิจกรรม <span class="text-danger">*</span></label>
-                        <input type="number" name="act_amount" id="act_amount" class="form-control" min="1" value="1"
-                            required>
-                        <small class="form-text text-muted">จำนวนกิจกรรมที่ต้องเข้าร่วมตามเกณฑ์</small>
+                        <label for="crit_amount">จำนวนกิจกรรม <span class="text-danger">*</span></label>
+                        <input type="number" name="crit_amount" id="crit_amount" class="form-control" min="1" value="1" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -304,15 +300,14 @@ if (isset($_GET['edit']) && !empty($_GET['edit'])) {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="edit_act_hour">จำนวนชั่วโมง <span class="text-danger">*</span></label>
-                        <input type="number" name="edit_act_hour" id="edit_act_hour" class="form-control" min="1"
-                            value="<?php echo $editCriteria['Act_hour']; ?>" required>
+                        <label for="edit_crit_hour">จำนวนชั่วโมง <span class="text-danger">*</span></label>
+                        <input type="number" name="edit_crit_hour" id="edit_crit_hour" class="form-control" min="1"
+                            value="<?php echo $editCriteria['Crit_hour']; ?>" required>
                     </div>
                     <div class="form-group">
-                        <label for="edit_act_amount">จำนวนกิจกรรม <span class="text-danger">*</span></label>
-                        <input type="number" name="edit_act_amount" id="edit_act_amount" class="form-control" min="1"
-                            value="<?php echo $editCriteria['Act_amount']; ?>" required>
-                        <small class="form-text text-muted">จำนวนกิจกรรมที่ต้องเข้าร่วมตามเกณฑ์</small>
+                        <label for="edit_crit_amount">จำนวนกิจกรรม <span class="text-danger">*</span></label>
+                        <input type="number" name="edit_crit_amount" id="edit_crit_amount" class="form-control" min="1"
+                            value="<?php echo $editCriteria['Crit_amount']; ?>" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -334,41 +329,35 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
-    // การตรวจสอบฟอร์มก่อนส่ง
     $('#addCriteriaForm').on('submit', function(e) {
-        // ตรวจสอบช่องที่จำเป็น
         const critName = $('#crit_name').val();
         const curriId = $('#curri_id').val();
         const planId = $('#plan_id').val();
         const actTypeId = $('#act_type_id').val();
-        const actHour = $('#act_hour').val();
-        const actAmount = $('#act_amount').val();
+        const critHour = $('#crit_hour').val();
+        const critAmount = $('#crit_amount').val();
 
-        if (!critName || !curriId || !planId || !actTypeId || !actHour || !actAmount) {
+        if (!critName || !curriId || !planId || !actTypeId || !critHour || !critAmount) {
             e.preventDefault();
             alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
             return false;
         }
-
         return true;
     });
 
-    // การตรวจสอบฟอร์มแก้ไขก่อนส่ง
     $('#editCriteriaForm').on('submit', function(e) {
-        // ตรวจสอบช่องที่จำเป็น
         const critName = $('#edit_crit_name').val();
         const curriId = $('#edit_curri_id').val();
         const planId = $('#edit_plan_id').val();
         const actTypeId = $('#edit_act_type_id').val();
-        const actHour = $('#edit_act_hour').val();
-        const actAmount = $('#edit_act_amount').val();
+        const critHour = $('#edit_crit_hour').val();
+        const critAmount = $('#edit_crit_amount').val();
 
-        if (!critName || !curriId || !planId || !actTypeId || !actHour || !actAmount) {
+        if (!critName || !curriId || !planId || !actTypeId || !critHour || !critAmount) {
             e.preventDefault();
             alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
             return false;
         }
-
         return true;
     });
 });

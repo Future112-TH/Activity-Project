@@ -32,8 +32,8 @@ try {
         $curri_id = isset($_POST['curri_id']) ? trim($_POST['curri_id']) : '';
         $plan_id = isset($_POST['plan_id']) ? trim($_POST['plan_id']) : '';
         $act_type_id = isset($_POST['act_type_id']) ? trim($_POST['act_type_id']) : '';
-        $act_hour = isset($_POST['act_hour']) ? intval($_POST['act_hour']) : 0;
-        $act_amount = isset($_POST['act_amount']) ? intval($_POST['act_amount']) : 0;
+        $crit_hour = isset($_POST['crit_hour']) ? intval($_POST['crit_hour']) : 0;
+        $crit_amount = isset($_POST['crit_amount']) ? intval($_POST['crit_amount']) : 0;
         
         // ตรวจสอบข้อมูล
         $errors = [];
@@ -54,11 +54,11 @@ try {
             $errors[] = "กรุณาเลือกประเภทกิจกรรม";
         }
         
-        if ($act_hour <= 0) {
+        if ($crit_hour <= 0) {
             $errors[] = "จำนวนชั่วโมงต้องมากกว่า 0";
         }
         
-        if ($act_amount <= 0) {
+        if ($crit_amount <= 0) {
             $errors[] = "จำนวนกิจกรรมต้องมากกว่า 0";
         }
         
@@ -69,8 +69,8 @@ try {
             exit;
         }
         
-        // เพิ่มข้อมูลลงฐานข้อมูล - ใช้เมธอด insertCriteria ที่มีการสร้างรหัสอัตโนมัติ
-        $result = $controller->insertCriteria($crit_name, $curri_id, $plan_id, $act_type_id, $act_hour, $act_amount);
+        // เพิ่มข้อมูลลงฐานข้อมูล
+        $result = $controller->insertCriteria($crit_name, $curri_id, $plan_id, $act_type_id, $crit_hour, $crit_amount);  // แก้ไขชื่อตัวแปร
         
         if ($result) {
             $_SESSION['success'] = "เพิ่มหลักเกณฑ์ '$crit_name' เรียบร้อยแล้ว";
@@ -88,9 +88,8 @@ try {
         $curri_id = isset($_POST['edit_curri_id']) ? trim($_POST['edit_curri_id']) : '';
         $plan_id = isset($_POST['edit_plan_id']) ? trim($_POST['edit_plan_id']) : '';
         $act_type_id = isset($_POST['edit_act_type_id']) ? trim($_POST['edit_act_type_id']) : '';
-        $act_hour = isset($_POST['edit_act_hour']) ? intval($_POST['edit_act_hour']) : 0;
-        $act_amount = isset($_POST['edit_act_amount']) ? intval($_POST['edit_act_amount']) : 0;
-        
+        $crit_hour = isset($_POST['edit_crit_hour']) ? intval($_POST['edit_crit_hour']) : 0;
+        $crit_amount = isset($_POST['edit_crit_amount']) ? intval($_POST['edit_crit_amount']) : 0;
         // ตรวจสอบข้อมูล
         $errors = [];
         
@@ -114,11 +113,11 @@ try {
             $errors[] = "กรุณาเลือกประเภทกิจกรรม";
         }
         
-        if ($act_hour <= 0) {
+        if ($crit_hour <= 0) {
             $errors[] = "จำนวนชั่วโมงต้องมากกว่า 0";
         }
         
-        if ($act_amount <= 0) {
+        if ($crit_amount <= 0) {
             $errors[] = "จำนวนกิจกรรมต้องมากกว่า 0";
         }
         
@@ -130,7 +129,7 @@ try {
         }
         
         // อัพเดทข้อมูลในฐานข้อมูล
-        $result = $controller->updateCriteria($crit_id, $crit_name, $curri_id, $plan_id, $act_type_id, $act_hour, $act_amount);
+        $result = $controller->updateCriteria($crit_id, $crit_name, $curri_id, $plan_id, $act_type_id, $crit_hour, $crit_amount);  // แก้ไขชื่อตัวแปร
         
         if ($result) {
             $_SESSION['success'] = "แก้ไขหลักเกณฑ์ '$crit_name' เรียบร้อยแล้ว";

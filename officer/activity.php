@@ -1,13 +1,12 @@
 <?php
-// เรียกใช้ไฟล์เชื่อมต่อฐานข้อมูลและคลาส Controller
-include_once '../config/database.php';
-include_once '../config/controller.php';
+require_once '../config/database.php';
+require_once '../config/controller.php';
 
-// สร้างการเชื่อมต่อกับฐานข้อมูล
+// Create database connection
 $database = new Database();
 $db = $database->connect();
 
-// สร้างอ็อบเจกต์ Controller
+// Create controller instance with database connection
 $controller = new Controller($db);
 
 // ดึงข้อมูลกิจกรรมทั้งหมด
@@ -599,11 +598,12 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                         <thead>
                                             <tr>
                                                 <th width="10%">รหัสนักศึกษา</th>
-                                                <th width="25%">ชื่อ-สกุล</th>
-                                                <th width="20%">สาขาวิชา</th>
+                                                <th width="20%">ชื่อ-สกุล</th> 
+                                                <th width="15%">สาขาวิชา</th>
                                                 <th width="10%">ประเภท</th>
                                                 <th width="10%">ชั่วโมง</th>
-                                                <th width="15%">เช็คชื่อ</th>
+                                                <th width="15%">เวลาเช็คอิน</th>
+                                                <th width="15%">เวลาเช็คเอ้าท์</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -615,16 +615,26 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                                 while($student = $participants->fetch(PDO::FETCH_ASSOC)) {
                                                     $participantCount++;
                                                     $totalHours += $student['Act_hour'];
+                                                    
+                                                    // แปลงรูปแบบเวลา
+                                                    $checkinTime = !empty($student['CheckIn']) ? date('d/m/Y H:i', strtotime($student['CheckIn'])) : '-';
+                                                    $checkoutTime = !empty($student['CheckOut']) ? date('d/m/Y H:i', strtotime($student['CheckOut'])) : '-';
                                             ?>
                                             <tr>
                                                 <td><?php echo $student['Stu_id']; ?></td>
-                                                <td><?php echo $student['Stu_fname'] . ' ' . $student['Stu_lname']; ?>
-                                                </td>
+                                                <td><?php echo $student['Stu_fname'] . ' ' . $student['Stu_lname']; ?></td>
                                                 <td><?php echo $student['Maj_name']; ?></td>
                                                 <td><span class="badge badge-primary">IT</span></td>
                                                 <td><?php echo $student['Act_hour']; ?></td>
-                                                <td><span
-                                                        class="badge badge-success"><?php echo $student['CheckIn']; ?></span>
+                                                <td>
+                                                    <span class="badge badge-success">
+                                                        <?php echo $checkinTime; ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge <?php echo !empty($student['CheckOut']) ? 'badge-info' : 'badge-secondary'; ?>">
+                                                        <?php echo $checkoutTime; ?>
+                                                    </span>
                                                 </td>
                                             </tr>
                                             <?php 
@@ -632,7 +642,7 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                                             } else {
                                             ?>
                                             <tr>
-                                                <td colspan="6" class="text-center">ไม่พบข้อมูลผู้เข้าร่วมกิจกรรม</td>
+                                                <td colspan="7" class="text-center">ไม่พบข้อมูลผู้เข้าร่วมกิจกรรม</td>
                                             </tr>
                                             <?php 
                                             }
@@ -651,8 +661,12 @@ if (isset($_GET['view']) && !empty($_GET['view'])) {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <a href="checkin.php?act_id=<?php echo $viewActivity['Act_id']; ?>" 
-                        class="btn btn-success">
+                    <div class="text-center mr-auto">
+                        <button type="button" class="btn btn-info" data-toggle="modal" data-target="#qrCodeModal">
+                            <i class="fas fa-qrcode mr-1"></i> แสดง QR Code
+                        </button>
+                    </div>
+                    <a href="checkin.php?act_id=<?php echo $viewActivity['Act_id']; ?>" class="btn btn-success">
                         <i class="fas fa-clock mr-1"></i> เปิดหน้าเช็คอิน
                     </a>
                     <a href="index.php?menu=10" class="btn btn-secondary">
@@ -886,3 +900,104 @@ $(document).ready(function() {
 </script>
 
 <?php require_once 'includes/tablejs.php' ?>
+
+<!-- เพิ่ม Modal แสดง QR Code -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" role="dialog" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrCodeModalLabel">
+                    <i class="fas fa-qrcode mr-1"></i> QR Code สำหรับเช็คอินกิจกรรม
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qrcode" class="mb-3"></div>
+                <p class="mb-0">สแกน QR Code นี้เพื่อเข้าสู่หน้าเช็คอินกิจกรรม</p>
+                <small class="text-muted"><?php echo $viewActivity['Act_name']; ?></small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="downloadQRCode()">
+                    <i class="fas fa-download mr-1"></i> ดาวน์โหลด QR Code
+                </button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i> ปิด
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- เพิ่ม Script สำหรับสร้างและดาวน์โหลด QR Code -->
+<script>
+let qrcode = null;
+
+$('#qrCodeModal').on('shown.bs.modal', function () {
+    // แก้ไข URL ให้ชี้ไปที่หน้าเช็คอินที่ถูกต้อง
+    const checkinUrl = "http://localhost:8080/Activity/officer/checkin.php?act_id=<?php echo $viewActivity['Act_id']; ?>";
+    
+    // ล้าง QR Code เดิมถ้ามี
+    if (qrcode) {
+        document.getElementById("qrcode").innerHTML = '';
+    }
+    
+    // สร้าง QR Code ใหม่
+    qrcode = new QRCode(document.getElementById("qrcode"), {
+        text: checkinUrl,
+        width: 256,
+        height: 256,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+    
+    // แสดง URL ใต้ QR Code
+    const urlDisplay = document.createElement('div');
+    urlDisplay.className = 'text-muted small mt-2';
+    urlDisplay.textContent = checkinUrl;
+    document.getElementById("qrcode").appendChild(urlDisplay);
+});
+
+// ฟังก์ชันดาวน์โหลด QR Code
+function downloadQRCode() {
+    const canvas = document.querySelector("#qrcode canvas");
+    if (canvas) {
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.download = 'checkin-qrcode-<?php echo $viewActivity['Act_id']; ?>.png';
+        link.href = image;
+        link.click();
+    }
+}
+
+// เพิ่มการล้าง QR Code เมื่อปิด Modal
+$('#qrCodeModal').on('hidden.bs.modal', function () {
+    document.getElementById("qrcode").innerHTML = '';
+    qrcode = null;
+});
+</script>
+
+<!-- style สำหรับ QR Code -->
+<style>
+#qrcode {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+#qrcode img {
+    max-width: 256px;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+#qrcode .text-muted {
+    word-break: break-all;
+    max-width: 100%;
+    text-align: center;
+}
+</style>

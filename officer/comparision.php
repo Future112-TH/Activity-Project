@@ -210,6 +210,26 @@ $comparisions = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <option value="rejected">ไม่อนุมัติ</option>
                         </select>
                     </div>
+
+                    <!-- เพิ่มส่วนเลือกกิจกรรมเทียบโอน -->
+                    <div class="form-group" id="act_transfer_group" style="display:none;">
+                        <label>เลือกกิจกรรมเทียบโอน:</label>
+                        <select name="act_transfer" id="act_transfer" class="form-control">
+                            <option value="">-- เลือกกิจกรรมเทียบโอน --</option>
+                            <?php
+                            // Query กิจกรรมเทียบโอน
+                            $sql = "SELECT * FROM act_transfer ORDER BY Acttrans_name ASC";
+                            $stmt = $db->prepare($sql);
+                            $stmt->execute();
+                            $transfers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            foreach($transfers as $transfer) {
+                                echo "<option value='".$transfer['Acttrans_id']."' data-hour='".$transfer['Acttrans_hour']."'>"
+                                     .$transfer['Acttrans_name']." (".$transfer['Acttrans_hour']." ชั่วโมง)</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -251,6 +271,24 @@ $(document).ready(function() {
         }
         
         $('#status').val('');
+    });
+
+    // แสดง/ซ่อนตัวเลือกกิจกรรมเทียบโอนตามสถานะที่เลือก
+    $('#status').change(function() {
+        if($(this).val() === 'approved') {
+            $('#act_transfer_group').slideDown();
+            $('#act_transfer').prop('required', true);
+        } else {
+            $('#act_transfer_group').slideUp();
+            $('#act_transfer').prop('required', false);
+        }
+    });
+
+    // อัพเดทจำนวนชั่วโมงเมื่อเลือกกิจกรรมเทียบโอน
+    $('#act_transfer').change(function() {
+        var selectedOption = $(this).find('option:selected');
+        var hours = selectedOption.data('hour');
+        $('#activity_hour').val(hours);
     });
 });
 </script>
